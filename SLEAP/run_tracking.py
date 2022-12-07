@@ -12,7 +12,7 @@ from os.path import join, isdir, split, isfile
 from glob import glob
 
 # Settings
-MODEL_PATH = '/home/guido/Data/SLEAP/OpenFieldCatheter/models/221201_174607.single_instance.n=102'
+MODEL_PATH = '/home/guido/Data/SLEAP/OpenFieldCatheter/models/221205_170800.single_instance.n=135'
 DATA_PATH = '/media/guido/Data2/Psychedelics/OpenField/Videos'
 RESULT_PATH = '/home/guido/Dropbox/Work/Data/Psychedelics/OpenField/Tracking'
 
@@ -30,37 +30,32 @@ for i, top_folder in enumerate(top_level_folders):
             output_path = join(RESULT_PATH, split(top_folder)[-1], split(sub_folder)[-1],
                                split(video_file)[-1][:-4])
 
-            print(output_path)
-
+            # Run SLEAP tracking
             if not isfile(output_path + '.slp'):
-                # Run SLEAP tracking
                 print('Starting SLEAP tracking..')
                 os.system((f'sleap-track --model {MODEL_PATH} '
                            f'--output {output_path} '
                            '--tracking.tracker flow '
                            f'{video_file}'))
 
+            # Convert to H5 file format
             if not isfile(output_path + '.h5'):
-                # Convert to H5 file format
                 print('Converting output to .h5 file format..')
                 os.system((f'sleap-convert -o {output_path + ".h5"} '
                            f'--format analysis '
                            f'{output_path + ".slp"}'))
 
+            # Copy and save timestamps
             if not isfile(output_path + '_timestamps.npy'):
-                # Convert to H5 file format
                 meta_data = pd.read_csv(video_file[:-4] + '.csv', header=None)
                 np.save(output_path + '_timestamps.npy', meta_data[1].values)
 
-                print('Converting output to .h5 file format..')
-                os.system((f'sleap-convert -o {output_path + ".h5"} '
-                           f'--format analysis '
-                           f'{output_path + ".slp"}'))
-
+            """
             # Compress video
             if not isfile(f'{video_file[:-4]}.mp4'):
                 print('Compressing video..')
                 os.system(f'ffmpeg -i {video_file} -c:v libx264 -crf 21 {video_file[:-4]}.mp4')
+            """
 
             # Delete original avi file
             # TO DO
