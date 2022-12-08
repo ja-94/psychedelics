@@ -8,6 +8,7 @@ Created on Sun Dec  4 11:50:22 2022
 import json
 import h5py
 import numpy as np
+import pandas as pd
 from os.path import join, dirname, realpath, isfile
 
 
@@ -27,6 +28,12 @@ def paths():
         paths = json.load(json_file)
     paths['repo_path'] = dirname(realpath(__file__))
     return paths
+
+
+def load_subjects():
+    path_dict = paths()
+    subjects = pd.read_csv(join(path_dict['repo_path'], 'subjects.csv'), delimiter=';')
+    return subjects
 
 
 def load_tracking(file_path):

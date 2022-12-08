@@ -8,7 +8,7 @@ Created on Sun Dec  4 12:05:50 2022
 import numpy as np
 import seaborn as sns
 from os.path import join, split
-from psychedelic_functions import paths, load_tracking
+from psychedelic_functions import paths, load_tracking, load_subjects
 import matplotlib.pyplot as plt
 from glob import glob
 import pandas as pd
@@ -18,11 +18,16 @@ import math
 DOSAGES = ['Low_Dose', 'Medium_Dose']
 TITLES = ['Low dose (75 ug/kg)', 'Medium dose (150 ug/kg)']
 NODE = 'nose'
-FRAME_RATE = 30
+FRAME_RATE = 30  # frames/s
+BIN_SIZE = 2  # minutes
+PLOT = False
 
 # Get paths
 path_dict = paths()
 data_dir = join(path_dict['data_path'], 'OpenField', 'Tracking')
+
+# Load subject data
+subjects = load_subjects()
 
 
 def distance(row):
@@ -33,6 +38,7 @@ def distance(row):
 
 
 # Loop over different dosages
+dist_df = pd.DataFrame()
 for i, this_dose in enumerate(DOSAGES):
     # Get list of subjects
     sub_dirs = glob(join(data_dir, this_dose, '*'))
@@ -45,9 +51,10 @@ for i, this_dose in enumerate(DOSAGES):
 
         # Loop over sessions
         ses_df = pd.DataFrame()
-        f, axs = plt.subplots(1, len(ses_paths), figsize=(2*len(ses_paths), 2.5), dpi=300)
-        if len(ses_paths) == 1:
-            axs = [axs]
+        if PLOT:
+            f, axs = plt.subplots(1, len(ses_paths), figsize=(2*len(ses_paths), 2.5), dpi=300)
+            if len(ses_paths) == 1:
+                axs = [axs]
         for k, this_ses in enumerate(ses_paths):
 
             # Load in tracking data of this session
@@ -69,17 +76,44 @@ for i, this_dose in enumerate(DOSAGES):
             ses_df['X2'] = ses_df['X'].shift(-1)
             ses_df['Y2'] = ses_df['Y'].shift(-1)
             ses_df['distance'] = ses_df.apply(distance, axis=1)
-            ses_df['binned_time'] = pd.cut(ses_df['time'], np.arange(0, 61, 1))
+            ses_df['binned_time'] = pd.cut(ses_df['time'], np.arange(0, 61, BIN_SIZE))
 
+            # Get mean distance travelled per timebin
             binned_df = ses_df.groupby('binned_time').mean(numeric_only=True)['distance']
+            binned_df = binned_df.to_frame().reset_index(drop=True)
+            binned_df['time'] = np.arange(0, 60, BIN_SIZE)
+            binned_df['subject'] = split(this_sub)[-1]
+            binned_df['dose'] = this_dose
+            binned_df['date'] = split(this_ses)[-1][:8]
+            binned_df['administration'] = subjects.loc[
+                subjects['subject'] == split(this_sub)[-1], 'administration'].values[0]
+            
+            # Add to df
+            dist_df = pd.concat((dist_df, binned_df))
 
-            axs[k].plot(np.arange(0, 60, 1), binned_df.values)
-            axs[k].set(ylabel='Distance travelled', xlabel='Time (m)', yticks=[0, 5, 10],
-                    xticks=[0, 30, 60], title=split(this_sub)[-1])
-        f.suptitle(f'{TITLES[i]}')
-        plt.tight_layout()
-        sns.despine(trim=True)
+            # Plot
+            if PLOT:
+                axs[k].plot(np.arange(0, 60, BIN_SIZE), binned_df['distance'])
+                axs[k].set(ylabel='Distance travelled', xlabel='Time (m)', yticks=[0, 5, 10],
+                        xticks=[0, 30, 60], title=split(this_sub)[-1])
+        if PLOT:
+            f.suptitle(f'{TITLES[i]}')
+            plt.tight_layout()
+            sns.despine(trim=True)
 
 
+# %% Plot
 
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=200)
+sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance',
+             hue='dose', ax=ax1, errorbar='se')
+ax1.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[0, 10])
+ax1.legend(title='', frameon=False)
 
+sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance',
+             hue='dose', ax=ax2, errorbar='se')
+ax2.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[0, 10])
+ax2.legend(title='', frameon=False)
+
+plt.tight_layout()
+sns.despine(trim=True)
