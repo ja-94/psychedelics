@@ -10,11 +10,42 @@ import numpy as np
 import pandas as pd
 from os.path import join, isdir, split, isfile
 from glob import glob
+from shutil import copyfile
 
 # Settings
+EXT_DRIVE_PATH = '/media/guido/Seagate Backup Plus Drive/Experiments_Joana_Guido/OpenField_tests'
 MODEL_PATH = '/home/guido/Data/SLEAP/OpenFieldCatheter/models/221205_170800.single_instance.n=135'
 DATA_PATH = '/media/guido/Data2/Psychedelics/OpenField/Videos'
 RESULT_PATH = '/home/guido/Dropbox/Work/Data/Psychedelics/OpenField/Tracking'
+
+# Copy new videos from external drive
+top_level_folders = glob(join(EXT_DRIVE_PATH, '*'))
+for i, top_folder in enumerate(top_level_folders):
+    if not isdir(join(DATA_PATH, split(top_folder)[-1])):
+        os.mkdir(join(DATA_PATH, split(top_folder)[-1]))
+    sub_folders = glob(join(EXT_DRIVE_PATH, top_folder, '*'))
+    for j, sub_folder in enumerate(sub_folders):
+        if not isdir(join(DATA_PATH, split(top_folder)[-1], split(sub_folder)[-1])):
+            os.mkdir(join(DATA_PATH, split(top_folder)[-1], split(sub_folder)[-1]))
+
+        # Copy video files
+        video_files = glob(join(EXT_DRIVE_PATH, sub_folder, '*.avi'))
+        for k, video_file in enumerate(video_files):
+            output_path = join(DATA_PATH, split(top_folder)[-1], split(sub_folder)[-1],
+                               split(video_file)[-1])
+            if not isfile(output_path):
+                print(f'Copying {split(video_file)[-1]} from external drive..')
+                copyfile(video_file, output_path)
+
+        # copy csv files
+        csv_files = glob(join(EXT_DRIVE_PATH, sub_folder, '*.csv'))
+        for k, csv_file in enumerate(csv_files):
+            output_path = join(DATA_PATH, split(top_folder)[-1], split(sub_folder)[-1],
+                               split(csv_file)[-1])
+            if not isfile(output_path):
+                print(f'Copying {split(csv_file)[-1]} from external drive..')
+                copyfile(csv_file, output_path)
+
 
 # Find videos to process
 top_level_folders = glob(join(DATA_PATH, '*'))
