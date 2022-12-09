@@ -21,6 +21,7 @@ NODE = 'nose'
 FRAME_RATE = 30  # frames/s
 BIN_SIZE = 2  # minutes
 PLOT = False
+BASELINE = [10, 20]
 
 # Get paths
 path_dict = paths()
@@ -76,10 +77,14 @@ for i, this_dose in enumerate(DOSAGES):
             ses_df['X2'] = ses_df['X'].shift(-1)
             ses_df['Y2'] = ses_df['Y'].shift(-1)
             ses_df['distance'] = ses_df.apply(distance, axis=1)
+            ses_df['distance_bl'] = (
+                ses_df['distance']
+                - ses_df.loc[(ses_df['time'] >= BASELINE[0]) & (ses_df['time'] <= BASELINE[1]),
+                             'distance'].mean())
             ses_df['binned_time'] = pd.cut(ses_df['time'], np.arange(0, 61, BIN_SIZE))
 
             # Get mean distance travelled per timebin
-            binned_df = ses_df.groupby('binned_time').mean(numeric_only=True)['distance']
+            binned_df = ses_df.groupby('binned_time').mean(numeric_only=True)['distance_bl']
             binned_df = binned_df.to_frame().reset_index(drop=True)
             binned_df['time'] = np.arange(0, 60, BIN_SIZE)
             binned_df['subject'] = split(this_sub)[-1]
@@ -104,16 +109,16 @@ for i, this_dose in enumerate(DOSAGES):
 
 # %% Plot
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=200)
-sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance',
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 2), dpi=300)
+sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance_bl',
              hue='dose', ax=ax1, errorbar='se')
-ax1.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[0, 10])
-ax1.legend(title='', frameon=False)
+ax1.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[-2.5, 7.5])
+ax1.legend(title='', frameon=False, prop={'size': 7})
 
-sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance',
+sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance_bl',
              hue='dose', ax=ax2, errorbar='se')
-ax2.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[0, 10])
-ax2.legend(title='', frameon=False)
+ax2.set(ylabel='', xlabel='Time (m)', ylim=[-2.5, 7.5])
+ax2.legend(title='', frameon=False, prop={'size': 7})
 
 plt.tight_layout()
 sns.despine(trim=True)
