@@ -32,9 +32,8 @@ results_dir = join(path_dict['data_path'], 'OpenField', 'BehavioralClassificatio
 # Load subject data
 subjects = load_subjects()
 
-
 # Loop over different dosages
-dist_df = pd.DataFrame()
+behav_df = pd.DataFrame()
 for i, this_dose in enumerate(DOSAGES):
     # Get list of subjects
     sub_dirs = glob(join(data_dir, this_dose, '*'))
@@ -49,47 +48,58 @@ for i, this_dose in enumerate(DOSAGES):
         ses_df = pd.DataFrame()
         for k, this_ses in enumerate(ses_paths):
 
+            # Get session params
+            subject = split(this_sub)[-1]
+            date = split(this_ses)[-1][:8]
+
             # Load in tracking data of this session
             tracking = load_tracking(this_ses)
 
             # Generate time axis
             time_ax = np.linspace(0, tracking['tracks'].shape[0] / FRAME_RATE,
                                   tracking['tracks'].shape[0])
-            
+
             # Reshape tracking data so that x and y are each their own column
             reshaped_tracks = np.reshape(tracking['tracks'], (tracking['tracks'].shape[0],
                                                               tracking['tracks'].shape[1]*2))
-            
+
             # Smooth traces and interpolate NaNs
             print('Smoothing and interpolating traces..')
             smooth_tracks = np.empty(reshaped_tracks.shape)
             for tt in range(reshaped_tracks.shape[1]):
                smooth_tracks[:, tt] = smooth_interpolate_signal_sg(reshaped_tracks[:, tt],  window=5)
-            
+
             # Make an HMM and sample from it
             print('Fitting HMM..')
             arhmm = ssm.HMM(K, smooth_tracks.shape[1], observations='ar')  # use an auto-regressive HMM
             arhmm.fit(smooth_tracks)
             zhat = arhmm.most_likely_states(smooth_tracks)
-                        
+
             # Get transition matrix
             transition_mat = arhmm.transitions.transition_matrix
-            
+
             # Plot this session
             #cmap = sns.color_palette("tab10", K)
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 2), dpi=300)
-            ax1.imshow(zhat[None,time_ax <= 60], aspect="auto", cmap='tab10', extent=[0, 60, 0, 800], vmin=0, vmax=K-1)
-            ax1.plot(time_ax[time_ax <= 60], reshaped_tracks[time_ax <= 60, 0], zorder=1, color='k', lw=0.5)
+            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2), gridspec_kw={'width_ratios':[4,1]}, dpi=500)
+            ax1.imshow(zhat[None,time_ax <= 60], aspect="auto", cmap='Set2', extent=[0, 60, 0, 800], vmin=0, vmax=K-1)
+            ax1.plot(time_ax[time_ax <= 60], smooth_tracks[time_ax <= 60, 0], zorder=1, color='k', lw=0.5)
             ax1.set(xlabel='Time (s)', ylabel='Nose position')
-            
+
             im = ax2.imshow(transition_mat, cmap='gray')
             ax2.set(title="Transition Matrix")
-            
+
             plt.tight_layout()
             sns.despine(trim=True)
-            
-            ax1.plot
-            
+            plt.savefig(join(fig_dir, f'{subject}_{date}_{this_dose}_K{K}.jpg'), dpi=600)
 
-           
+            # Add to dataframe
+            behav_df = pd.concat((behav_df, pd.DataFrame(data={
+                'subject': subject, 'date': date, 'dose': this_dose, 'time': time_ax, 'behavior': zhat})))
+
+        # Save
+        behav_df.to_csv(join(results_dir, f'behavioral_classification_K{K}.csv'))
+
+
+
+
 

@@ -15,8 +15,8 @@ import pandas as pd
 import math
 
 # Settings
-DOSAGES = ['Low_Dose', 'Medium_Dose']
-TITLES = ['Low dose (75 ug/kg)', 'Medium dose (150 ug/kg)']
+DOSAGES = ['Low_Dose', 'Medium_Dose', 'High_Dose']
+TITLES = ['Low dose (75 ug/kg)', 'Medium dose (150 ug/kg)', 'High dose (300 ug/kg)']
 NODE = 'nose'
 FRAME_RATE = 30  # frames/s
 BIN_SIZE = 2  # minutes
@@ -92,7 +92,7 @@ for i, this_dose in enumerate(DOSAGES):
             binned_df['date'] = split(this_ses)[-1][:8]
             binned_df['administration'] = subjects.loc[
                 subjects['subject'] == split(this_sub)[-1], 'administration'].values[0]
-            
+
             # Add to df
             dist_df = pd.concat((dist_df, binned_df))
 
