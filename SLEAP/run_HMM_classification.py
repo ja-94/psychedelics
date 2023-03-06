@@ -91,7 +91,7 @@ for i, this_dose in enumerate(DOSAGES):
             plt.tight_layout()
             sns.despine(trim=True)
             plt.savefig(join(fig_dir, f'{subject}_{date}_{this_dose}_K{K}.jpg'), dpi=600)
-
+            
             # Add to dataframe
             behav_df = pd.concat((behav_df, pd.DataFrame(data={
                 'subject': subject, 'date': date, 'dose': this_dose, 'time': time_ax, 'behavior': zhat})))

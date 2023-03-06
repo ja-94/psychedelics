@@ -84,7 +84,7 @@ for i, this_dose in enumerate(DOSAGES):
             ses_df['binned_time'] = pd.cut(ses_df['time'], np.arange(0, 61, BIN_SIZE))
 
             # Get mean distance travelled per timebin
-            binned_df = ses_df.groupby('binned_time').mean(numeric_only=True)['distance_bl']
+            binned_df = ses_df.groupby('binned_time').mean(numeric_only=True)['distance']
             binned_df = binned_df.to_frame().reset_index(drop=True)
             binned_df['time'] = np.arange(0, 60, BIN_SIZE)
             binned_df['subject'] = split(this_sub)[-1]
@@ -110,12 +110,12 @@ for i, this_dose in enumerate(DOSAGES):
 # %% Plot
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 2), dpi=300)
-sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance_bl',
+sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance',
              hue='dose', ax=ax1, errorbar='se')
 ax1.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[-2.5, 7.5])
 ax1.legend(title='', frameon=False, prop={'size': 7})
 
-sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance_bl',
+sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance',
              hue='dose', ax=ax2, errorbar='se')
 ax2.set(ylabel='', xlabel='Time (m)', ylim=[-2.5, 7.5])
 ax2.legend(title='', frameon=False, prop={'size': 7})
