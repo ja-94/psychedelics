@@ -32,7 +32,7 @@ for i, eid in enumerate(eids):
    
    # Load in timestamps and DLC data
    video_times, XYs = get_dlc_XYs(one, eid)
-   if len(video_times) == 0:
+   if video_times is None:
        continue
    
    # Get smoothed pupil diameter
