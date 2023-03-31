@@ -14,9 +14,10 @@ from glob import glob
 import pandas as pd
 import math
 
+
 # Settings
-DOSAGES = ['Low_Dose', 'Medium_Dose', 'High_Dose']
-TITLES = ['Low dose (75 ug/kg)', 'Medium dose (150 ug/kg)', 'High dose (300 ug/kg)']
+DOSAGES = ['Low_Dose', 'Medium_Dose']
+TITLES = ['Low dose (75 ug/kg)', 'Medium dose (150 ug/kg)']
 NODE = 'nose'
 FRAME_RATE = 30  # frames/s
 BIN_SIZE = 2  # minutes
@@ -110,15 +111,73 @@ for i, this_dose in enumerate(DOSAGES):
 # %% Plot
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 2), dpi=300)
-sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance',
+sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance_bl',
              hue='dose', ax=ax1, errorbar='se')
 ax1.set(ylabel='Distance travelled', xlabel='Time (m)', ylim=[-2.5, 7.5])
 ax1.legend(title='', frameon=False, prop={'size': 7})
 
-sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance',
+sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance_bl',
              hue='dose', ax=ax2, errorbar='se')
 ax2.set(ylabel='', xlabel='Time (m)', ylim=[-2.5, 7.5])
 ax2.legend(title='', frameon=False, prop={'size': 7})
 
-plt.tight_layout()
 sns.despine(trim=True)
+
+plt.savefig('/home/joana/Desktop/LSD_project/Figures_OF_tracking/Distance_traveled.png', bbox_inches='tight')
+plt.savefig('/home/joana/Desktop/LSD_project/Figures_OF_tracking/Distance_traveled.pdf', bbox_inches='tight')
+
+
+# Plot distance travelled (last 30 min of the session)
+
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12,3), gridspec_kw={'width_ratios':[4.5, 0.08, 4.5]}, dpi=500)
+
+sns.lineplot(data=dist_df[dist_df['administration'] == 'catheter'], x='time', y='distance_bl',
+             hue='dose', ax=ax1, errorbar='se', palette=palette)
+ax1.set(ylabel='Distance traveled', xlabel='Time (m)', ylim=[-4, 8], xlim=[30,60])
+ax1.legend(title='', frameon=False, prop={'size':9}, loc='upper center', bbox_to_anchor=(1.1, -0.35), ncol=5)
+ax1.set_xlabel('Time (m)', fontsize=10, labelpad=12)
+ax1.tick_params(labelsize=9)
+ax1.set_title('Administration: Catheter', fontsize=10, pad=11)
+
+ax2.set(visible=False)
+
+sns.lineplot(data=dist_df[dist_df['administration'] == 'ip'], x='time', y='distance_bl',
+             hue='dose', ax=ax3, errorbar='se', palette=palette)
+ax3.set(ylabel='Distance traveled', xlabel='Time (m)', ylim=[-4, 8], xlim=[30,60])
+ax3.set_xlabel('Time (m)', fontsize=10, labelpad=12)
+ax3.tick_params(labelsize=9)
+ax3.legend([], frameon=False)
+ax3.set_title('Administration: IP', fontsize=10, pad=11)
+
+sns.despine(trim=True)
+
+plt.savefig('/home/joana/Desktop/LSD_project/Figures_OF_tracking/Distance_traveled_30-60.png', bbox_inches='tight')
+plt.savefig('/home/joana/Desktop/LSD_project/Figures_OF_tracking/Distance_traveled_30-60.pdf', bbox_inches='tight')
+
+
+#Barplot with total distance walked
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
