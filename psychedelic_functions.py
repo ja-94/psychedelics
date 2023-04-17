@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from os.path import join, dirname, realpath, isfile
 from scipy.interpolate import interp1d
+from ibllib.atlas import BrainRegions
+from iblutil.numerical import ismember
 
 
 def paths():
@@ -42,10 +44,7 @@ def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=
     br = brainregions or BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
-    if combine:
-        return combine_regions(remapped_acronyms, split_thalamus=split_thalamus, abbreviate=abbreviate)
-    else:
-        return remapped_acronyms
+    return remapped_acronyms
 
 
 def load_tracking(file_path):
