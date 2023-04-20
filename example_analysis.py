@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from os.path import join
 from brainbox.io.one import SpikeSortingLoader
 from brainbox.processing import bincount2D
-from psychedelic_functions import paths
+from psychedelic_functions import paths, query_recordings
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 ba = AllenAtlas()
@@ -19,10 +19,10 @@ one = ONE()
 path_dict = paths()
 
 # Query recordings
-pids = list(one.search_insertions(project='psychedelics', query_type='remote'))
+rec = query_recordings(one=one)
 
 # Loop over recordings
-for i, pid in enumerate(pids):
+for i, pid in enumerate(rec['pid']):
         
     # Load in spikes
     sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)

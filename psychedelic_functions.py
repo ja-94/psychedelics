@@ -11,8 +11,9 @@ import numpy as np
 import pandas as pd
 from os.path import join, dirname, realpath, isfile
 from scipy.interpolate import interp1d
-from ibllib.atlas import BrainRegions
+from one.api import ONE
 from iblutil.numerical import ismember
+from ibllib.atlas import BrainRegions
 
 
 def paths():
@@ -39,12 +40,124 @@ def load_subjects():
     return subjects
 
 
+def query_recordings(aligned=True, one=None):
+    if one is None:
+        one = ONE()
+    elif one == 'local':
+        rec = pd.read_csv(join(paths()['repo_path'], 'rec.csv'))
+        return rec
+
+    # Construct django query string
+    DJANGO_STR = ('session__project__name__icontains,psychedelics,'
+                 'session__qc__lt,50')
+    if aligned:
+        # Query all ephys-histology aligned sessions
+        DJANGO_STR += ',json__extended_qc__alignment_count__gt,0'
+
+    # Query sessions
+    ins = one.alyx.rest('insertions', 'list', django=DJANGO_STR)
+   
+    # Get list of eids and probes
+    rec = pd.DataFrame()
+    rec['pid'] = np.array([i['id'] for i in ins])
+    rec['eid'] = np.array([i['session'] for i in ins])
+    rec['probe'] = np.array([i['name'] for i in ins])
+    rec['subject'] = np.array([i['session_info']['subject'] for i in ins])
+    rec['date'] = np.array([i['session_info']['start_time'][:10] for i in ins])
+    rec = rec.drop_duplicates('pid', ignore_index=True)
+    
+    # Save to file
+    rec.to_csv(join(paths()['repo_path'], 'rec.csv'))
+    return rec
+
+
 def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
           abbreviate=True, brainregions=None):
     br = brainregions or BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
     return remapped_acronyms
+
+
+def combine_regions(acronyms, split_thalamus=False, abbreviate=False):
+    """
+    Combines regions into groups, input Beryl atlas acronyms: use remap function first
+    """
+    regions = np.array(['root'] * len(acronyms), dtype=object)
+    if abbreviate:
+        regions[np.in1d(acronyms, ['ILA', 'PL', 'ACAd', 'ACAv'])] = 'mPFC'
+        regions[np.in1d(acronyms, ['MOs'])] = 'M2'
+        regions[np.in1d(acronyms, ['ORBl', 'ORBm'])] = 'OFC'
+        if split_thalamus:
+            regions[np.in1d(acronyms, ['PO'])] = 'PO'
+            regions[np.in1d(acronyms, ['LP'])] = 'LP'
+            regions[np.in1d(acronyms, ['LD'])] = 'LD'
+            regions[np.in1d(acronyms, ['RT'])] = 'RT'
+            regions[np.in1d(acronyms, ['VAL'])] = 'VAL'
+        else:
+            regions[np.in1d(acronyms, ['PO', 'LP', 'LD', 'RT', 'VAL'])] = 'Thal'
+        regions[np.in1d(acronyms, ['SCm', 'SCs', 'SCig', 'SCsg', 'SCdg'])] = 'SC'
+        regions[np.in1d(acronyms, ['RSPv', 'RSPd'])] = 'RSP'
+        regions[np.in1d(acronyms, ['MRN'])] = 'MRN'
+        regions[np.in1d(acronyms, ['ZI'])] = 'ZI'
+        regions[np.in1d(acronyms, ['PAG'])] = 'PAG'
+        regions[np.in1d(acronyms, ['SSp-bfd'])] = 'BC'
+        #regions[np.in1d(acronyms, ['LGv', 'LGd'])] = 'LG'
+        regions[np.in1d(acronyms, ['PIR'])] = 'Pir'
+        #regions[np.in1d(acronyms, ['SNr', 'SNc', 'SNl'])] = 'SN'
+        regions[np.in1d(acronyms, ['VISa', 'VISam', 'VISp', 'VISpm'])] = 'VIS'
+        regions[np.in1d(acronyms, ['MEA', 'CEA', 'BLA', 'COAa'])] = 'Amyg'
+        regions[np.in1d(acronyms, ['AON', 'TTd', 'DP'])] = 'OLF'
+        regions[np.in1d(acronyms, ['CP', 'STR', 'STRd', 'STRv'])] = 'Str'
+        regions[np.in1d(acronyms, ['CA1', 'CA3', 'DG'])] = 'Hipp'
+    else:
+        regions[np.in1d(acronyms, ['ILA', 'PL', 'ACAd', 'ACAv'])] = 'Medial prefrontal cortex'
+        regions[np.in1d(acronyms, ['MOs'])] = 'Secondary motor cortex'
+        regions[np.in1d(acronyms, ['ORBl', 'ORBm'])] = 'Orbitofrontal cortex'
+        if split_thalamus:
+            regions[np.in1d(acronyms, ['PO'])] = 'Thalamus (PO)'
+            regions[np.in1d(acronyms, ['LP'])] = 'Thalamus (LP)'
+            regions[np.in1d(acronyms, ['LD'])] = 'Thalamus (LD)'
+            regions[np.in1d(acronyms, ['RT'])] = 'Thalamus (RT)'
+            regions[np.in1d(acronyms, ['VAL'])] = 'Thalamus (VAL)'
+        else:
+            regions[np.in1d(acronyms, ['PO', 'LP', 'LD', 'RT', 'VAL'])] = 'Thalamus'
+        regions[np.in1d(acronyms, ['SCm', 'SCs', 'SCig', 'SCsg', 'SCdg'])] = 'Superior colliculus'
+        regions[np.in1d(acronyms, ['RSPv', 'RSPd'])] = 'Retrosplenial cortex'
+        regions[np.in1d(acronyms, ['MRN'])] = 'Midbrain reticular nucleus'
+        regions[np.in1d(acronyms, ['AON', 'TTd', 'DP'])] = 'Olfactory areas'
+        regions[np.in1d(acronyms, ['ZI'])] = 'Zona incerta'
+        regions[np.in1d(acronyms, ['PAG'])] = 'Periaqueductal gray'
+        regions[np.in1d(acronyms, ['SSp-bfd'])] = 'Barrel cortex'
+        #regions[np.in1d(acronyms, ['LGv', 'LGd'])] = 'Lateral geniculate'
+        regions[np.in1d(acronyms, ['PIR'])] = 'Piriform'
+        #regions[np.in1d(acronyms, ['SNr', 'SNc', 'SNl'])] = 'Substantia nigra'
+        regions[np.in1d(acronyms, ['VISa', 'VISam', 'VISp', 'VISpm'])] = 'Visual cortex'
+        regions[np.in1d(acronyms, ['MEA', 'CEA', 'BLA', 'COAa'])] = 'Amygdala'
+        regions[np.in1d(acronyms, ['CP', 'STR', 'STRd', 'STRv'])] = 'Tail of the striatum'
+        regions[np.in1d(acronyms, ['CA1', 'CA3', 'DG'])] = 'Hippocampus'
+    return regions
+
+
+def high_level_regions(acronyms, merge_cortex=False):
+    """
+    Input Allen atlas acronyms
+    """
+    first_level_regions = combine_regions(remap(acronyms), abbreviate=True)
+    cosmos_regions = remap(acronyms, dest='Cosmos')
+    regions = np.array(['root'] * len(first_level_regions), dtype=object)
+    if merge_cortex:
+        regions[cosmos_regions == 'Isocortex'] = 'Cortex'
+        regions[first_level_regions == 'Pir'] = 'Cortex'
+    else:
+        regions[np.in1d(first_level_regions, ['mPFC', 'OFC', 'M2'])] = 'Frontal'
+        regions[np.in1d(first_level_regions, ['Pir', 'BC', 'VISa/am'])] = 'Sensory'
+    regions[cosmos_regions == 'MB'] = 'Midbrain'
+    regions[cosmos_regions == 'HPF'] = 'Hippocampus'
+    regions[cosmos_regions == 'TH'] = 'Thalamus'
+    regions[np.in1d(first_level_regions, ['Amyg'])] = 'Amygdala'
+    regions[np.in1d(acronyms, ['CP', 'ACB', 'FS'])] = 'Striatum'
+    return regions
 
 
 def load_tracking(file_path):
