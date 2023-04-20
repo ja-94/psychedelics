@@ -31,6 +31,11 @@ for i, pid in enumerate(rec['pid']):
     if len(spikes) == 0:
         continue
     
+    # Only keep IBL good neurons
+    spikes.times = spikes.times[np.isin(spikes.clusters, clusters.cluster_id[clusters.label == 1])]
+    spikes.depths = spikes.depths[np.isin(spikes.clusters, clusters.cluster_id[clusters.label == 1])]
+    spikes.clusters = spikes.clusters[np.isin(spikes.clusters, clusters.cluster_id[clusters.label == 1])]
+    
     # Get spike raster
     iok = ~np.isnan(spikes.depths)
     R, times, depths = bincount2D(spikes.times[iok], spikes.depths[iok], 0.01, 20, weights=None)
