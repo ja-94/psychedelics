@@ -178,6 +178,13 @@ def load_tracking(file_path):
     
     return tracking
 
+def query_recordings(aligned=True, one=None):
+    if one is None:
+        one = ONE()
+    elif one == 'local':
+        rec = pd.read_csv(join(paths()['repo_path'], 'rec.csv'))
+        return rec
+
 
 def smooth_interpolate_signal_sg(signal, window=31, order=3, interp_kind='cubic'):
     """Run savitzy-golay filter on signal, interpolate through nan points.
@@ -322,3 +329,121 @@ def non_uniform_savgol(x, y, window, polynom):
             x_i *= x[i] - x[-half_window - 1]
 
     return y_smoothed
+
+ 
+ 
+def get_dlc_XYs(one, eid, view='left', likelihood_thresh=0.9): 
+    if f'alf/_ibl_{view}Camera.times.npy' in one.list_datasets(eid): 
+        times = one.load_dataset(eid, f'_ibl_{view}Camera.times.npy') 
+    elif isfile(join(one.eid2path(eid), f'{view}Camera.times.npy')): 
+        times = np.load(join(one.eid2path(eid), f'{view}Camera.times.npy')) 
+    else: 
+        print('could not load camera timestamps') 
+        return None, None 
+    try: 
+        cam = one.load_dataset(eid, '_ibl_%sCamera.dlc.pqt' % view) 
+    except KeyError: 
+        print('not all dlc data available') 
+        return None, None 
+    points = np.unique(['_'.join(x.split('_')[:-1]) for x in cam.keys()]) 
+    # Set values to nan if likelyhood is too low # for pqt: .to_numpy() 
+    XYs = {} 
+    for point in points: 
+        x = np.ma.masked_where(cam[point + '_likelihood'] < likelihood_thresh, cam[point + '_x']) 
+        x = x.filled(np.nan) 
+        y = np.ma.masked_where(cam[point + '_likelihood'] < likelihood_thresh, cam[point + '_y']) 
+        y = y.filled(np.nan) 
+        XYs[point] = np.array([x, y]).T 
+    return times, XYs 
+ 
+ 
+def get_pupil_diameter(XYs): 
+    """Estimate pupil diameter by taking median of different computations. 
+ 
+    In the two most obvious ways: 
+    d1 = top - bottom, d2 = left - right 
+ 
+    In addition, assume the pupil is a circle and estimate diameter from other pairs of 
+    points 
+ 
+    Author: Michael Schartner 
+ 
+    Parameters 
+    ---------- 
+    XYs : dict 
+        keys should include `pupil_top_r`, `pupil_bottom_r`, 
+        `pupil_left_r`, `pupil_right_r` 
+    Returns 
+    ------- 
+    np.array 
+        pupil diameter estimate for each time point, shape (n_frames,) 
+ 
+    """ 
+ 
+    # direct diameters 
+    t = XYs['pupil_top_r'][:, :2] 
+    b = XYs['pupil_bottom_r'][:, :2] 
+    l = XYs['pupil_left_r'][:, :2] 
+    r = XYs['pupil_right_r'][:, :2] 
+ 
+    def distance(p1, p2): 
+        return ((p1[:, 0] - p2[:, 0]) ** 2 + (p1[:, 1] - p2[:, 1]) ** 2) ** 0.5 
+ 
+    # get diameter via top-bottom and left-right 
+    ds = [] 
+    ds.append(distance(t, b)) 
+    ds.append(distance(l, r)) 
+ 
+    def dia_via_circle(p1, p2): 
+        # only valid for non-crossing edges 
+        u = distance(p1, p2) 
+        return u * (2 ** 0.5) 
+ 
+    # estimate diameter via circle assumption 
+    for side in [[t, l], [t, r], [b, l], [b, r]]: 
+        ds.append(dia_via_circle(side[0], side[1])) 
+    diam = np.nanmedian(ds, axis=0) 
+    return diam 
+ 
+ 
+def get_raw_smooth_pupil_diameter(XYs): 
+ 
+    # threshold (in standard deviations) beyond which a point is labeled as an outlier 
+    std_thresh = 5 
+ 
+    # threshold (in seconds) above which we will not interpolate nans, but keep them 
+    # (for long stretches interpolation may not be appropriate) 
+    nan_thresh = 1 
+ 
+    # compute framerate of camera 
+    fr = 60  # set by hardware 
+    window = 61  # works well empirically 
+ 
+    # compute diameter using raw values of 4 markers (will be noisy and have missing data) 
+    diam0 = get_pupil_diameter(XYs) 
+ 
+    # run savitzy-golay filter on non-nan timepoints to denoise 
+    diam_sm0 = smooth_interpolate_signal_sg( 
+        diam0, window=window, order=3, interp_kind='linear') 
+ 
+    # find outliers, set to nan 
+    errors = diam0 - diam_sm0 
+    std = np.nanstd(errors) 
+    diam1 = np.copy(diam0) 
+    diam1[(errors < (-std_thresh * std)) | (errors > (std_thresh * std))] = np.nan 
+    # run savitzy-golay filter again on (possibly reduced) non-nan timepoints to denoise 
+    diam_sm1 = smooth_interpolate_signal_sg( 
+        diam1, window=window, order=3, interp_kind='linear') 
+ 
+    # don't interpolate long strings of nans 
+    t = np.diff(1 * np.isnan(diam1)) 
+    begs = np.where(t == 1)[0] 
+    ends = np.where(t == -1)[0] 
+    if begs.shape[0] > ends.shape[0]: 
+        begs = begs[:ends.shape[0]] 
+    for b, e in zip(begs, ends): 
+        if (e - b) > (fr * nan_thresh): 
+            diam_sm1[(b + 1):(e + 1)] = np.nan  # offset by 1 due to earlier diff 
+ 
+    # diam_sm1 is the final smoothed pupil diameter estimate 
+    return diam0, diam_sm1

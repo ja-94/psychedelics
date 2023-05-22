@@ -19,37 +19,38 @@ ba = AllenAtlas(res_um=10)
 AP = [2, -1.5, -3.5]
 
 # Paths
-path_dict = paths()
+#path_dict = paths()
 
 # Load in results
-all_neurons = pd.read_csv(join(path_dict['data_path'], 'n_neurons.csv'))
+all_neurons = pd.read_csv('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/n_neurons.csv')
+#all_neurons = pd.read_csv(join(path_dict['data_path'], 'n_neurons.csv'))
 all_neurons = all_neurons[all_neurons['region'] != 'root']
 all_neurons = all_neurons[all_neurons['region'] != 'void']
 
 # %%
 
-CMAP = 'turbo'
+CMAP = 'turbo' 
 
 # Plot brain map slices
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 4), dpi=200)
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 4), dpi=500)
 
 plot_scalar_on_slice(all_neurons['region'].values, np.log10(all_neurons['n_neurons'].values), ax=ax1,
                      slice='coronal', coord=AP[0]*1000, background='boundary', brain_atlas=ba,
                      mapping='Beryl', cmap=CMAP, clevels=[0, 2])
 ax1.axis('off')
-ax1.set(title=f'+{np.abs(AP[0])} mm AP')
+#ax1.set(title=f'+{np.abs(AP[0])} mm AP')
 
 plot_scalar_on_slice(all_neurons['region'].values, np.log10(all_neurons['n_neurons'].values), ax=ax2,
                      slice='coronal', coord=AP[1]*1000, background='boundary', brain_atlas=ba,
                      mapping='Beryl', cmap=CMAP, clevels=[0, 2])
 ax2.axis('off')
-ax2.set(title=f'-{np.abs(AP[1])} mm AP')
+#ax2.set(title=f'-{np.abs(AP[1])} mm AP')
 
 plot_scalar_on_slice(all_neurons['region'].values, np.log10(all_neurons['n_neurons'].values), ax=ax3,
                      slice='coronal', coord=AP[2]*1000, background='boundary', brain_atlas=ba,
                      mapping='Beryl', cmap=CMAP, clevels=[0, 2])
 ax3.axis('off')
-ax3.set(title=f'-{np.abs(AP[2])} mm AP')
+#ax3.set(title=f'-{np.abs(AP[2])} mm AP')
 
 sns.despine()
 
@@ -62,6 +63,6 @@ cbar.ax.set_ylabel('Total number of\nrecorded neurons (log)', rotation=270, labe
 cbar.ax.set_yticks([0, 1, 2])
 cbar.ax.set_yticklabels([1, 10, 100])
 
-plt.savefig(join(path_dict['fig_path'], 'brain_map_n_neurons.pdf'))
-
+plt.savefig('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/brain_map_n_neurons2.pdf')
+plt.savefig('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/brain_map_n_neurons2.png')
 

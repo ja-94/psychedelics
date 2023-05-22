@@ -69,12 +69,14 @@ for i, eid in enumerate(eids):
    ax3.plot(time_binned, diameter_binned, marker='o', ms= 6, color = '#38a3a5')
    ax3.set(xlabel='Time (min)', ylabel='Pupil diameter (%)')
    ax3.yaxis.set_ticks(np.arange(0, 200, 50))
+   set.axline
    ax3.set_xlabel('Time (min)', fontsize=10, labelpad=14)
    
    plt.subplots_adjust(hspace=0.05)
    
    sns.despine(trim=True)
    #plt.tight_layout()
+   
    
   
 '''    
