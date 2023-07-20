@@ -47,6 +47,6 @@ for i, pid in enumerate(rec['pid']):
     plt.tight_layout()
     sns.despine(trim=True, offset=4)
     
-    plt.savefig(join(path_dict['fig_path'], f'raster_{pid}.jpg'), dpi=600)
-    plt.close(f)
+    #plt.savefig(join(path_dict['fig_path'], f'raster_{pid}.jpg'), dpi=600)
+    #plt.close(f)
     
