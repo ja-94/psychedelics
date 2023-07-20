@@ -54,3 +54,4 @@ for i in np.arange(1, channels['acronym'].shape[0], 50):
 
 plt.tight_layout()
 sns.despine(trim=True, offset=2)
+plt.savefig(join(path_dict['fig_path'], 'example_raster.pdf'))
