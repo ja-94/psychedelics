@@ -13,13 +13,13 @@ from psychedelic_functions import paths, query_recordings
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 ba = AllenAtlas()
-one = ONE()
+one = ONE(mode='local')
 
 # Get paths
 path_dict = paths()
 
 # Query recordings
-rec = query_recordings(one=one)
+rec = query_recordings(one='local')
 
 # Loop over recordings
 for i, pid in enumerate(rec['pid']):
