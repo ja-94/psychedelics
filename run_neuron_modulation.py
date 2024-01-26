@@ -15,6 +15,9 @@ from iblatlas.atlas import AllenAtlas
 ba = AllenAtlas()
 one = ONE()
 
+# Settings
+TIME = 20  # min
+
 # Query recordings
 rec = query_recordings(aligned=False)
 
@@ -35,5 +38,7 @@ for i, pid in enumerate(rec['pid']):
     if 'acronym' not in clusters.keys():
         continue
     
+    # Only keep good neurons
+    clusters.acronym = clusters.acronym[clusters.label == 1]
     
     
