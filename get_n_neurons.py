@@ -9,12 +9,12 @@ from os.path import join
 from psychedelic_functions import remap, paths
 from brainbox.io.one import SpikeSortingLoader
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
+from iblatlas.atlas import AllenAtlas
 ba = AllenAtlas()
 one = ONE()
 
 # Get paths
-#path_dict = paths()
+path_dict = paths()
 
 # Query pids
 pids = list(one.search_insertions(project='psychedelics', query_type='remote'))
@@ -59,7 +59,7 @@ for i, pid in enumerate(pids):
     neurons_df = pd.concat((neurons_df, this_df))
     
 # Save dataframe
-neurons_df.to_csv('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/n_neurons.csv')
+neurons_df.to_csv(join(path_dict['save_path'], 'n_neurons.csv'), index=False)
     
     
     

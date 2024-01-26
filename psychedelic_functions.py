@@ -13,7 +13,7 @@ from os.path import join, dirname, realpath, isfile
 from scipy.interpolate import interp1d
 from one.api import ONE
 from iblutil.numerical import ismember
-from ibllib.atlas import BrainRegions
+from iblatlas.atlas import BrainRegions
 
 
 def paths():
@@ -26,6 +26,7 @@ def paths():
         paths['fig_path'] = input('Path folder to save figures: ')
         paths['data_path'] = input('Path to data folder:')
         path_file = open(join(dirname(realpath(__file__)), 'paths.json'), 'w')
+        paths['save_path'] = join(dirname(realpath(__file__)), 'Data')
         json.dump(paths, path_file)
         path_file.close()
     with open(join(dirname(realpath(__file__)), 'paths.json')) as json_file:
