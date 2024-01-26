@@ -26,12 +26,12 @@ def paths():
         paths['fig_path'] = input('Path folder to save figures: ')
         paths['data_path'] = input('Path to data folder:')
         path_file = open(join(dirname(realpath(__file__)), 'paths.json'), 'w')
-        paths['save_path'] = join(dirname(realpath(__file__)), 'Data')
         json.dump(paths, path_file)
         path_file.close()
     with open(join(dirname(realpath(__file__)), 'paths.json')) as json_file:
         paths = json.load(json_file)
     paths['repo_path'] = dirname(realpath(__file__))
+    paths['save_path'] = join(dirname(realpath(__file__)), 'Data')
     return paths
 
 
@@ -80,10 +80,8 @@ def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=
     return remapped_acronyms
 
 
-def combine_regions(acronyms, split_thalamus=False, abbreviate=False):
-    """
-    Combines regions into groups, input Beryl atlas acronyms: use remap function first
-    """
+def combine_regions(allen_acronyms, split_thalamus=False, abbreviate=False):
+    acronyms = remap(allen_acronyms)
     regions = np.array(['root'] * len(acronyms), dtype=object)
     if abbreviate:
         regions[np.in1d(acronyms, ['ILA', 'PL', 'ACAd', 'ACAv'])] = 'mPFC'
@@ -178,13 +176,6 @@ def load_tracking(file_path):
     tracking['node_names'] = node_names
     
     return tracking
-
-def query_recordings(aligned=True, one=None):
-    if one is None:
-        one = ONE()
-    elif one == 'local':
-        rec = pd.read_csv(join(paths()['repo_path'], 'rec.csv'))
-        return rec
 
 
 def smooth_interpolate_signal_sg(signal, window=31, order=3, interp_kind='cubic'):

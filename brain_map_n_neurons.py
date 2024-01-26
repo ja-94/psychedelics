@@ -10,19 +10,19 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from os.path import join
-from ibllib.atlas.plots import plot_scalar_on_slice
+from iblatlas.plots import plot_scalar_on_slice
 from psychedelic_functions import paths
-from ibllib.atlas import AllenAtlas
+from iblatlas.atlas import AllenAtlas
 ba = AllenAtlas(res_um=10)
 
 # Settings
 AP = [2, -1.5, -3.5]
 
 # Paths
-#path_dict = paths()
+path_dict = paths()
 
 # Load in results
-all_neurons = pd.read_csv('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/n_neurons.csv')
+all_neurons = pd.read_csv(join(path_dict['save_path'], 'n_neurons.csv'))
 #all_neurons = pd.read_csv(join(path_dict['data_path'], 'n_neurons.csv'))
 all_neurons = all_neurons[all_neurons['region'] != 'root']
 all_neurons = all_neurons[all_neurons['region'] != 'void']
@@ -32,7 +32,7 @@ all_neurons = all_neurons[all_neurons['region'] != 'void']
 CMAP = 'turbo' 
 
 # Plot brain map slices
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 4), dpi=500)
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(7, 4), dpi=150)
 
 plot_scalar_on_slice(all_neurons['region'].values, np.log10(all_neurons['n_neurons'].values), ax=ax1,
                      slice='coronal', coord=AP[0]*1000, background='boundary', brain_atlas=ba,
@@ -63,6 +63,4 @@ cbar.ax.set_ylabel('Total number of\nrecorded neurons (log)', rotation=270, labe
 cbar.ax.set_yticks([0, 1, 2])
 cbar.ax.set_yticklabels([1, 10, 100])
 
-plt.savefig('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/brain_map_n_neurons2.pdf')
-plt.savefig('C:/Users/Asus/int-brain-lab/psychedelics_project_folder/Figures/brain_map_n_neurons2.png')
 
