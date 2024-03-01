@@ -9,6 +9,9 @@ import json
 import h5py
 import numpy as np
 import pandas as pd
+import matplotlib
+import seaborn as sns
+import tkinter as tk
 from os.path import join, dirname, realpath, isfile
 from scipy.interpolate import interp1d
 from one.api import ONE
@@ -157,6 +160,44 @@ def high_level_regions(acronyms, merge_cortex=False):
     regions[np.in1d(first_level_regions, ['Amyg'])] = 'Amygdala'
     regions[np.in1d(acronyms, ['CP', 'ACB', 'FS'])] = 'Striatum'
     return regions
+
+
+def figure_style():
+    """
+    Set style for plotting figures
+    """
+    sns.set(style="ticks", context="paper",
+            font="Arial",
+            rc={"font.size": 7,
+                "figure.titlesize": 7,
+                "axes.titlesize": 7,
+                "axes.labelsize": 7,
+                "axes.linewidth": 0.5,
+                "lines.linewidth": 1,
+                "lines.markersize": 3,
+                "xtick.labelsize": 7,
+                "ytick.labelsize": 7,
+                "savefig.transparent": True,
+                "xtick.major.size": 2.5,
+                "ytick.major.size": 2.5,
+                "xtick.major.width": 0.5,
+                "ytick.major.width": 0.5,
+                "xtick.minor.size": 2,
+                "ytick.minor.size": 2,
+                "xtick.minor.width": 0.5,
+                "ytick.minor.width": 0.5,
+                'legend.fontsize': 7,
+                'legend.title_fontsize': 7,
+                'legend.frameon': False,
+                })
+    matplotlib.rcParams['pdf.fonttype'] = 42
+    matplotlib.rcParams['ps.fonttype'] = 42
+
+    colors = {}
+
+    screen_width = tk.Tk().winfo_screenwidth()
+    dpi = screen_width / 10
+    return colors, dpi
 
 
 def load_tracking(file_path):
