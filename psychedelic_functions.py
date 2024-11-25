@@ -7,6 +7,8 @@ Created on Sun Dec  4 11:50:22 2022
 
 import json
 import h5py
+import warnings
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -74,6 +76,60 @@ def query_recordings(aligned=True, one=None):
     rec.to_csv(join(paths()['repo_path'], 'rec.csv'))
     return rec
 
+def get_protocol_timings(one, eids, df_infos):
+    timingss = []
+    for eid in tqdm(eids):
+        details = one.get_details(eid)
+        
+        # Assert that there were two tasks run throughout the session
+        protocols = details['task_protocol'].split('/')
+        if len(protocols) < 2:   # TODO: check for a more direct method
+            warnings.warn(f"Fewer than 2 protocols found for {eid}")
+        # Assert that both protocols are identical
+        assert len(np.unique(protocols)) == 1
+    
+        timings = {}
+        timings['eid'] = eid
+        dataset = '_ibl_passivePeriods.intervalsTable'
+        for i, protocol in enumerate(protocols):
+            collection = f'alf/task_0{i}' 
+
+            try:
+                df = one.load_dataset(eid, dataset, collection).set_index('Unnamed: 0').rename_axis('')
+            except:
+                warnings.warn(f"No intervals table found for {eid}, task {i:02d}")
+                continue
+            # Assert all protocols are in expected order
+            assert (np.diff(df.loc['start']) > 0).all()
+            timings[f'spontaneous_start_{i:02d}'] = df.loc['start', 'spontaneousActivity']
+            timings[f'spontaneous_stop_{i:02d}'] = df.loc['stop', 'spontaneousActivity']
+            timings[f'rfm_start_{i:02d}'] = df.loc['start', 'RFM']
+            timings[f'rfm_stop_{i:02d}'] = df.loc['stop', 'RFM']
+            timings[f'replay_start_{i:02d}'] = df.loc['stop', 'taskReplay']
+            # Define task stop as the last garbor/valve event
+            try:
+                gabors = one.load_dataset(eid, '_ibl_passiveGabor.table', collection)
+                stims = one.load_dataset(eid, '_ibl_passiveStims.table', collection)
+                timings[f'replay_stop_{i:02d}'] = np.max([gabors['stop'].max(), stims.max().max()])
+            except:
+                warnings.warn(f"No stimulus timing found for {eid}, task {i:02d}")
+                # timings[f'replay_stop_{i:02d}'] = np.nan
+                continue
+            
+        
+        infos = df_infos[(df_infos['animal_ID'] == details['subject']) & (df_infos['date'] == details['date'])]
+        if len(infos) < 1:
+            warnings.warn(f"No entries in 'recordings.csv' for {eid}")
+            continue
+        elif len(infos) > 1:
+            warnings.warn(f"More than one entry in 'recordings.csv' for {eid}")
+            continue
+        timings['admin_time'] = infos['administration_time']
+
+        timingss.append(timings)
+    
+    return pd.DataFrame(timingss)
+    
 
 def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
           abbreviate=True, brainregions=None):
