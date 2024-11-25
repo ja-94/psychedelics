@@ -1,3 +1,16 @@
+For: 26.11.2024
+---------------
+JA
+- make scree plots for every recording (2 lines/ barplots in same axis, with error bars of some kind)
+    - fit 1/f^x slope to explained variance function
+    - def power_law(x, alpha): return 1 / (f ** alpha)
+    - alpha, cov = scipy.curve_fit(power_law, np.arange(len(pcs)), yy))
+    - paired samples plot of alpha in each condition
+
+DC
+- make scatter plot for firing rates and Fano factors during spontaneous activity
+
+
 Change format of 'data' variable and others to a Dataframe with
     -unique identifier per unit
     -column with spike times with each entry being a numpy array with all times for a given unit
