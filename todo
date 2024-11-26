@@ -1,3 +1,22 @@
+From meeting on 26.11.2024
+--------------------------
+Fit exponentials DONE 
+It's good that we see things similar to the classic result PCA-wise
+Interesting to see if there is variability accross sessions/insertions/areas (-> do the neurons per area per recording plot, coloring it green for increase in alpha, red for decrease)
+Label based on whether it's first, second, or third LSD session (we should probably add this to the .csv with all the session info?)
+Label animals in plots
+Look at more time windows. Davide proposes one immediately post-LSD, another one before the second spontaneous window. We could do a sliding window or a set of continuous intervals to see time evolution.
+Should we check if the animals are sleeping?
+
+
+
+
+
+
+
+
+
+
 For: 26.11.2024
 ---------------
 JA
