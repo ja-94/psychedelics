@@ -20,6 +20,8 @@ from scipy.interpolate import interp1d
 from one.api import ONE
 from iblutil.numerical import ismember
 from iblatlas.atlas import BrainRegions
+from iblatlas.atlas import AllenAtlas
+from brainbox.io.one import SpikeSortingLoader
 
 
 def paths():
@@ -136,6 +138,31 @@ def fetch_protocol_timings(one, eids, df_meta):
         timingss.append(timings)
     
     return pd.DataFrame(timingss).set_index('eid')
+
+def fetch_spikes(one, pids):
+    # Init dataframe for all probes
+    df_spikes = pd.DataFrame()
+    for pid in tqdm(pids):
+        # Load in spike times and cluster info
+        loader = SpikeSortingLoader(pid=pid, one=one, atlas=AllenAtlas(res_um=50))
+        spikes, clusters, channels = loader.load_spike_sorting()
+        # Merge QC metrics into clusters dict
+        clusters = loader.merge_clusters(spikes, clusters, channels)
+        clusters['uuids'] = clusters['uuids'].values  # take values out of dataframe
+        # Take only "good clusters"
+        good_cluster_mask = clusters['label'] == 1  # TODO: find out what other label values mean
+        good_clusters = {key:val[good_cluster_mask] for key, val in clusters.items()}
+        # Unpack dict of arrays into list of dicts
+        cluster_infos = [{key:val[i] for key, val in good_clusters.items()} for i, cid in enumerate(good_clusters['cluster_id'])]
+        # print(f"Good clusters: {good_cluster_mask.sum()} / {len(good_cluster_mask)}")
+        # Build dataframe from list for this probe
+        df_probe = pd.DataFrame(cluster_infos)
+        df_probe['pid'] = pid
+        df_probe['eid'], df_probe['probe'] = one.pid2eid(pid)
+        df_probe['spike_times'] = df_probe['cluster_id'].apply(lambda x: spikes.times[spikes.clusters == x])
+        # Concatenate data from this probe
+        df_spikes = pd.concat([df_spikes, df_probe])
+    return df_spikes.set_index('uuids')
     
 
 def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
