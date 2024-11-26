@@ -536,3 +536,11 @@ def get_raw_smooth_pupil_diameter(XYs):
  
     # diam_sm1 is the final smoothed pupil diameter estimate 
     return diam0, diam_sm1
+
+
+
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx

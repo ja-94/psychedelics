@@ -11,6 +11,11 @@ DC
 - make scatter plot for firing rates and Fano factors during spontaneous activity
 
 
+
+
+
+
+
 Change format of 'data' variable and others to a Dataframe with
     -unique identifier per unit
     -column with spike times with each entry being a numpy array with all times for a given unit
