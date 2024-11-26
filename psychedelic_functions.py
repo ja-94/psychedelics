@@ -9,6 +9,7 @@ import json
 import h5py
 import warnings
 from tqdm import tqdm
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -45,7 +46,6 @@ def load_subjects():
     subjects = pd.read_csv(join(path_dict['repo_path'], 'subjects.csv'), delimiter=';')
     return subjects
 
-
 def query_recordings(aligned=True, one=None):
     if one is None:
         one = ONE()
@@ -76,7 +76,14 @@ def query_recordings(aligned=True, one=None):
     rec.to_csv(join(paths()['repo_path'], 'rec.csv'))
     return rec
 
-def get_protocol_timings(one, eids, df_infos):
+def load_metadata():
+    df_meta = pd.read_csv('metadata.csv')
+    df_meta['date'] = df_meta['date'].apply(lambda x: datetime.strptime(x, '%d.%m.%Y').date())
+    hms2sec = lambda hms: np.sum(np.array([int(val) for val in hms.split(':')]) * np.array([3600, 60, 1]))
+    df_meta['administration_time_s'] = df_meta['administration_time'].apply(hms2sec)
+    return df_meta
+
+def fetch_protocol_timings(one, eids, df_meta):
     timingss = []
     for eid in tqdm(eids):
         details = one.get_details(eid)
@@ -116,19 +123,19 @@ def get_protocol_timings(one, eids, df_infos):
                 # timings[f'replay_stop_{i:02d}'] = np.nan
                 continue
             
-        
-        infos = df_infos[(df_infos['animal_ID'] == details['subject']) & (df_infos['date'] == details['date'])]
-        if len(infos) < 1:
-            warnings.warn(f"No entries in 'recordings.csv' for {eid}")
-            continue
-        elif len(infos) > 1:
-            warnings.warn(f"More than one entry in 'recordings.csv' for {eid}")
-            continue
-        timings['admin_time'] = infos['administration_time']
+        if df_meta is not None:
+            meta = df_meta[(df_meta['animal_ID'] == details['subject']) & (df_meta['date'] == details['date'])]
+            if len(meta) < 1:
+                warnings.warn(f"No entries in 'recordings.csv' for {eid}")
+                continue
+            elif len(meta) > 1:
+                warnings.warn(f"More than one entry in 'recordings.csv' for {eid}")
+                continue
+            timings['admin_time'] = meta['administration_time_s']
 
         timingss.append(timings)
     
-    return pd.DataFrame(timingss)
+    return pd.DataFrame(timingss).set_index('eid')
     
 
 def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
