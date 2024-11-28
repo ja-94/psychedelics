@@ -5,3 +5,5 @@ paths.json
 .ipynb_checkpoints/
 
 test_project/
+
+Data/
