@@ -10,12 +10,18 @@ DONE Fit exponentials
 Remake the neurons/areas/sessions with all sessions/assess why few neurons
 Interesting to see if there is variability accross sessions/insertions/areas (-> do the neurons per area per recording plot, coloring it green for increase in alpha, red for decrease)
 Plot screes normalized to the first component in each condition, to see shape of decay independently of intercept
+Optimize code to stop downloading things everytime:
+    -Save spikes, clusters, channels to files
+    -Separate the binned rasters code from spike loading
+    -Run PCA on spikes and clusters, not binned matrix
+    -Save PCA results to speed up later working on it/plotting
 
 
 
 DC
 Label based on whether it's first, second, or third LSD session (we should probably add this to the .csv with all the session info?)
 Label animals in plots
+Figure out missing timings from raw task data files
 
 
 
