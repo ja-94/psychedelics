@@ -145,6 +145,8 @@ def fetch_spikes(one, pid):
     spikes, clusters, channels = loader.load_spike_sorting()
     # Merge QC metrics into clusters dict
     clusters = loader.merge_clusters(spikes, clusters, channels)
+    if clusters is None:
+        return 
     clusters['uuids'] = clusters['uuids'].values  # take values out of dataframe
     # Take only "good clusters"
     good_cluster_mask = clusters['label'] == 1  # TODO: find out what other label values mean
