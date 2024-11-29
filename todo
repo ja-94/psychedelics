@@ -6,7 +6,7 @@ FOR LATER - Look at more time windows. Davide proposes one immediately post-LSD,
 FOR LATER - Should we check if the animals are sleeping?
 
 JA
-DONE Fit exponentials
+Fit exponentials
 Remake the neurons/areas/sessions with all sessions/assess why few neurons
 Interesting to see if there is variability accross sessions/insertions/areas (-> do the neurons per area per recording plot, coloring it green for increase in alpha, red for decrease)
 Plot screes normalized to the first component in each condition, to see shape of decay independently of intercept
