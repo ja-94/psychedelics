@@ -158,7 +158,33 @@ def fetch_spikes(one, pid):
     df_probe['eid'], df_probe['probe'] = one.pid2eid(pid)
     df_probe['spike_times'] = df_probe['cluster_id'].apply(lambda x: spikes.times[spikes.clusters == x])
     return df_probe
-    
+
+def _get_binned_spike_counts(x, start=None, stop=None, dt=1):
+    if start is None:
+        t0 = x['spike_times'].min()
+    else:
+        t0 = x[start]
+    if stop is None:
+        t1 = x['spike_times'].max()
+    else:
+        t1 = x[stop]
+    if np.isnan(t0) | np.isnan(t1):
+        return np.nan
+    bins = np.arange(t0, t1 + dt, dt) 
+    return np.histogram(x['spike_times'], bins=bins)[0]
+
+def _get_spike_times_in_interval(x, start, stop):
+    if start is None:
+        t0 = x['spike_times'].min()
+    else:
+        t0 = x[start]
+    if stop is None:
+        t1 = x['spike_times'].max()
+    else:
+        t1 = x[stop]
+    if np.isnan(t0) | np.isnan(t1):
+        return np.nan
+    return x['spike_times'][(x['spike_times'] >= t0) & (x['spike_times'] <= t1)]
 
 def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
           abbreviate=True, brainregions=None):
