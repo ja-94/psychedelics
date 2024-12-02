@@ -133,7 +133,7 @@ def fetch_protocol_timings(one, eids, df_meta):
             elif len(meta) > 1:
                 warnings.warn(f"More than one entry in 'recordings.csv' for {eid}")
                 continue
-            timings['admin_time'] = meta['administration_time_s']
+            timings['admin_time'] = meta['administration_time_s'].values[0]
 
         timingss.append(timings)
     
