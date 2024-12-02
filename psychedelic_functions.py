@@ -79,7 +79,7 @@ def query_recordings(aligned=True, one=None):
     return rec
 
 def load_metadata():
-    df_meta = pd.read_csv('metadata.csv')
+    df_meta = pd.read_csv('./metadata/metadata.csv')
     df_meta['date'] = df_meta['date'].apply(lambda x: datetime.strptime(x, '%d.%m.%Y').date())
     hms2sec = lambda hms: np.sum(np.array([int(val) for val in hms.split(':')]) * np.array([3600, 60, 1]))
     df_meta['administration_time_s'] = df_meta['administration_time'].apply(hms2sec)
