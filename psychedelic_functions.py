@@ -151,6 +151,8 @@ def fetch_spikes(one, pid):
     # Take only "good clusters"
     good_cluster_mask = clusters['label'] == 1  # TODO: find out what other label values mean
     good_clusters = {key:val[good_cluster_mask] for key, val in clusters.items()}
+    if not good_cluster_mask.any():
+        return 
     # Unpack dict of arrays into list of dicts
     cluster_infos = [{key:val[i] for key, val in good_clusters.items()} for i, cid in enumerate(good_clusters['cluster_id'])]
     print(f"Good clusters PID{pid[:8]}...: {good_cluster_mask.sum()} / {len(good_cluster_mask)}")
