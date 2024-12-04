@@ -7,3 +7,6 @@ paths.json
 test_project/
 
 data/
+
+metadata/timings.csv
+
