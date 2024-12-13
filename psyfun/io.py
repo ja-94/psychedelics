@@ -87,16 +87,16 @@ def fetch_protocol_timings(one, eid, administration_time=True, save=True):
 
         try:
             df = one.load_dataset(eid, dataset, collection).set_index('Unnamed: 0').rename_axis('')
+            # return pd.DataFrame([timings]).set_index('eid')
+            # Assert all protocols are in expected order
+            assert (np.diff(df.loc['start']) > 0).all()
+            timings[f'spontaneous_start_{i:02d}'] = df.loc['start', 'spontaneousActivity']
+            timings[f'spontaneous_stop_{i:02d}'] = df.loc['stop', 'spontaneousActivity']
+            timings[f'rfm_start_{i:02d}'] = df.loc['start', 'RFM']
+            timings[f'rfm_stop_{i:02d}'] = df.loc['stop', 'RFM']
+            timings[f'replay_start_{i:02d}'] = df.loc['stop', 'taskReplay']
         except:
             warnings.warn(f"No intervals table found for {eid}, task {i:02d}")
-            return pd.DataFrame([timings]).set_index('eid')
-        # Assert all protocols are in expected order
-        assert (np.diff(df.loc['start']) > 0).all()
-        timings[f'spontaneous_start_{i:02d}'] = df.loc['start', 'spontaneousActivity']
-        timings[f'spontaneous_stop_{i:02d}'] = df.loc['stop', 'spontaneousActivity']
-        timings[f'rfm_start_{i:02d}'] = df.loc['start', 'RFM']
-        timings[f'rfm_stop_{i:02d}'] = df.loc['stop', 'RFM']
-        timings[f'replay_start_{i:02d}'] = df.loc['stop', 'taskReplay']
         # Define task stop as the last garbor/valve event
         try:
             gabors = one.load_dataset(eid, '_ibl_passiveGabor.table', collection)
@@ -105,7 +105,7 @@ def fetch_protocol_timings(one, eid, administration_time=True, save=True):
         except:
             warnings.warn(f"No stimulus timing found for {eid}, task {i:02d}")
             # timings[f'replay_stop_{i:02d}'] = np.nan
-            return pd.DataFrame([timings]).set_index('eid')
+            # return pd.DataFrame([timings]).set_index('eid')
         
     if df_meta is not None:
         meta = df_meta[(df_meta['animal_ID'] == details['subject']) & (df_meta['date'] == details['date'])]
