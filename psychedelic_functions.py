@@ -167,11 +167,17 @@ def _get_binned_spike_counts(x, start=None, stop=None, dt=1):
     if start is None:
         t0 = x['spike_times'].min()
     else:
-        t0 = x[start]
+        if isinstance (start, str):
+            t0 = x[start]
+        else:
+            t0 = start
     if stop is None:
         t1 = x['spike_times'].max()
     else:
-        t1 = x[stop]
+        if isinstance (stop, str):
+            t1 = x[stop]
+        else:
+            t1 = stop
     if np.isnan(t0) | np.isnan(t1):
         return np.nan
     bins = np.arange(t0, t1 + dt, dt) 
