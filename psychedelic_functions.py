@@ -199,6 +199,7 @@ def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=
 
 
 def combine_regions(allen_acronyms, split_thalamus=False, abbreviate=False):
+    print(len(allen_acronyms))
     acronyms = remap(allen_acronyms)
     regions = np.array(['root'] * len(acronyms), dtype=object)
     if abbreviate:
