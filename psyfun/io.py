@@ -1,9 +1,11 @@
+import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
 import warnings
 
+from one.alf.exceptions import *
 from brainbox.io.one import SpikeSortingLoader
 from iblatlas.atlas import AllenAtlas
 
@@ -79,33 +81,63 @@ def fetch_protocol_timings(one, eid, administration_time=True, save=True):
     # Assert that both protocols are identical
     assert len(np.unique(protocols)) == 1
 
-    timings = {}
-    timings['eid'] = eid
-    dataset = '_ibl_passivePeriods.intervalsTable'
+    timings = {'eid': eid}
     for i, protocol in enumerate(protocols):
-        collection = f'alf/task_0{i}' 
+         
 
         try:
-            df = one.load_dataset(eid, dataset, collection).set_index('Unnamed: 0').rename_axis('')
-            # return pd.DataFrame([timings]).set_index('eid')
-            # Assert all protocols are in expected order
-            assert (np.diff(df.loc['start']) > 0).all()
-            timings[f'spontaneous_start_{i:02d}'] = df.loc['start', 'spontaneousActivity']
-            timings[f'spontaneous_stop_{i:02d}'] = df.loc['stop', 'spontaneousActivity']
-            timings[f'rfm_start_{i:02d}'] = df.loc['start', 'RFM']
-            timings[f'rfm_stop_{i:02d}'] = df.loc['stop', 'RFM']
-            timings[f'replay_start_{i:02d}'] = df.loc['stop', 'taskReplay']
-        except:
-            warnings.warn(f"No intervals table found for {eid}, task {i:02d}")
-        # Define task stop as the last garbor/valve event
-        try:
+            collection = f'alf/task_0{i}'
+            df = one.load_dataset(eid, '_ibl_passivePeriods.intervalsTable', collection).set_index('Unnamed: 0').rename_axis('')
+            spontaneous_start = df.loc['start', 'spontaneousActivity']
+            spontaneous_stop = df.loc['stop', 'spontaneousActivity']
+            rfm_start = df.loc['start', 'RFM']
+            rfm_stop = df.loc['stop', 'RFM']
+            replay_start = df.loc['stop', 'taskReplay']
+            # Note: in intervals table, the protocol doesn't end until a new
+            # protocol is started or the recording is stopped, so we 
+            # define task replay stop as the last garbor/valve event
             gabors = one.load_dataset(eid, '_ibl_passiveGabor.table', collection)
             stims = one.load_dataset(eid, '_ibl_passiveStims.table', collection)
-            timings[f'replay_stop_{i:02d}'] = np.max([gabors['stop'].max(), stims.max().max()])
-        except:
-            warnings.warn(f"No stimulus timing found for {eid}, task {i:02d}")
-            # timings[f'replay_stop_{i:02d}'] = np.nan
-            # return pd.DataFrame([timings]).set_index('eid')
+            replay_stop = np.max([gabors['stop'].max(), stims.max().max()])
+        except ALFObjectNotFound:
+            warnings.warn(
+                f"No ALF data found for {eid}, task {i:02d} "
+                "Reverting to raw task data"
+            )
+            collection = f'raw_task_data_0{i}'
+            task_settings = one.load_dataset(eid, '_iblrig_taskSettings.raw.json', collection)
+            spontaneous_start = datetime.fromisoformat(task_settings['SESSION_DATETIME'])
+            df_gabor = one.load_dataset(eid, '_iblrig_stimPositionScreen.raw.csv', collection)
+            # First stimulus becomes the header, so we need to pull it out
+            df_gabor = pd.concat([pd.DataFrame([df_gabor.columns], columns=df_gabor.columns), df_gabor], ignore_index=True)
+            datetime_str = df_gabor.iloc[0, 2]
+            main, decimals = datetime_str.split('.')
+            decimals = decimals[:6]  # Keep only up to 6 digits
+            datetime_str = f"{main}.{decimals}"
+            replay_start = datetime.fromisoformat(datetime_str)
+            datetime_str = df_gabor.iloc[-1, 2]
+            main, decimals = datetime_str.split('.')
+            decimals = decimals[:6]  # Keep only up to 6 digits
+            datetime_str = f"{main}.{decimals}"
+            replay_stop = datetime.fromisoformat(datetime_str)
+            
+            # Convert datetimes to seconds since session start
+            session_details = one.get_details(eid)
+            session_start = datetime.fromisoformat(session_details['start_time'])
+            spontaneous_start = (spontaneous_start - session_start).seconds            
+            replay_start = (replay_start - session_start).seconds
+            replay_stop = (replay_stop - session_start).seconds
+            # Fill missing values with NaN
+            spontaneous_stop = np.nan
+            rfm_start = rfm_stop = np.nan
+
+        # Insert everything into timing dict
+        timings[f'spontaneous_start_{i:02d}'] = spontaneous_start
+        timings[f'spontaneous_stop_{i:02d}'] = spontaneous_stop
+        timings[f'rfm_start_{i:02d}'] = rfm_start
+        timings[f'rfm_stop_{i:02d}'] = rfm_stop
+        timings[f'replay_start_{i:02d}'] = replay_start
+        timings[f'replay_stop_{i:02d}'] = replay_stop
         
     if df_meta is not None:
         meta = df_meta[(df_meta['animal_ID'] == details['subject']) & (df_meta['date'] == details['date'])]
