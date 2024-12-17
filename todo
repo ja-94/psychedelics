@@ -1,3 +1,16 @@
+LSD Update 
+Functionize
+-Make one that computes one measurement across a window of data
+    -inputs neural data, associated timepoints, metric to compute
+    -arguments start time stop time window size step size or feed already clipped data
+-Plot things aligned to admin time for the sliding window, not needed for categorical windows
+-Make plot like pvalue ngsc for categorical windows but instead plot ngsc (window x)/ngsc (window 1), to get percentage change in the measurement, SEM error bars, multiply SEM *1.96 to get 95% CI, this is an approximation for statistical test, else do statistics and add asterisks. Do only with window 1 == spontaneous00
+
+
+
+
+
+
 LM Dec 4th
 ------------------
 -If I want to, intro about context of project switch
