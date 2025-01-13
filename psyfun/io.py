@@ -45,6 +45,8 @@ def query_recordings(one, qc='50', aligned=True, save=True):
     django_str = f'session__qc__lt,{qc},'
     if aligned:
         django_str += 'json__extended_qc__tracing_exists,True'
+        ## TODO:
+        # ',json__extended_qc__alignment_count__gt,0'
     pids, infos = one.search_insertions(project='psychedelics', django=django_str, details=True)
 
     name_map = {'id': 'pid', 'session': 'eid', 'probe': 'name'}
