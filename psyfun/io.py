@@ -20,7 +20,7 @@ def load_metadata():
     df_meta['administration_time'] = df_meta['administration_time'].apply(hms2sec)
     return df_meta
 
-def query_recordings(one, qc='50', aligned=True, save=True):
+def query_recordings(one, qc='0.', aligned=False, save=True):
     """
     Query alyx database for recordings (pids) from the psychedelics project.
 
@@ -42,9 +42,9 @@ def query_recordings(one, qc='50', aligned=True, save=True):
         Data frame of information for each probe insertion matching the query.
     """
 
-    django_str = f'session__qc__lt,{qc},'
+    django_str = f'camera__qc__gte,{qc}'
     if aligned:
-        django_str += 'json__extended_qc__tracing_exists,True'
+        django_str += ',json__extended_qc__tracing_exists,True'
         ## TODO:
         # ',json__extended_qc__alignment_count__gt,0'
     pids, infos = one.search_insertions(project='psychedelics', django=django_str, details=True)
