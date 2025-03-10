@@ -75,6 +75,11 @@ def fetch_sessions(one, save=True):
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
     df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns')
+    # Fetch task protocol timings and add to dataframe
+    df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns')
+    # Add LSD administration time
+    df_meta = load_metadata()
+    df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns')
     # Label and sort by session number for each subject
     df_sessions['session_n'] = df_sessions.groupby('subject')['start_time'].rank(method='dense').astype(int)
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
@@ -349,10 +354,14 @@ def fetch_units(one, df_insertions, atlas_res_um=50, uuid_file='', spike_file=''
                     h5file.create_dataset(cinfo['uuid'], data=spike_times)
     # Concatenate cluster info for all probes
     df_uuids = pd.concat(probe_dfs)
+    # Clean up some columns
+    df_uuids.drop(columns=['localCoordinates'])
+    df_uuids['histology'].fillna('')
+    df_uuids['acronym'].fillna('none')
     if uuid_file:
-        if not uuid_file.endswith('.csv'):
-            uuid_file = uuid_file.split('.')[0] + '.csv'
-        df_uuids.to_csv(uuid_file, index=False)
+        if not uuid_file.endswith('.pqt'):
+            uuid_file = uuid_file.split('.')[0] + '.pqt'
+        df_uuids.to_parquet(uuid_file, index=False)
     return df_uuids
 
 def load_units(spike_file, uuids):
