@@ -7,42 +7,12 @@ tqdm.pandas()
 import warnings
 import h5py
 
-from one.alf.exceptions import *
+# from one.alf.exceptions import *
 from brainbox.io.one import SpikeSortingLoader
 from iblatlas.atlas import AllenAtlas
+atlas = AllenAtlas()
 
-## Define some global constants
-PROJECT = 'psychedelics'
-PROTOCOL = 'passiveChoiceWorld'  # the IBL task protocol
-KEYDATASETS = {
-    'task00': [
-        'raw_task_data_00/_iblrig_taskSettings.raw.json',
-        'alf/task_00/_ibl_passivePeriods.intervalsTable.csv',
-        ],
-    'task01': [
-        'raw_task_data_01/_iblrig_taskSettings.raw.json',
-        'alf/task_01/_ibl_passivePeriods.intervalsTable.csv',
-        ],
-    'probe00': [
-        'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec0.sync.npy',
-        'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec0.ap.cbin',
-        'alf/probe00/pykilosort/spikes.times.npy'
-        ],
-    'probe01': [
-        'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec1.sync.npy',
-        'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec1.ap.cbin',
-        'alf/probe01/pykilosort/spikes.times.npy'
-        ],
-    'video': [
-        'raw_video_data/_iblrig_bodyCamera.raw.mp4',
-        'raw_video_data/_iblrig_bodyCamera.frameData.bin',
-        'raw_video_data/_iblrig_leftCamera.raw.mp4',
-        'raw_video_data/_iblrig_leftCamera.frameData.bin',
-        'raw_video_data/_iblrig_rightCamera.raw.mp4',
-        'raw_video_data/_iblrig_rightCamera.frameData.bin',
-        ]
-}
-
+from .config import *
 
 def fetch_sessions(one, save=True):
     """
@@ -66,7 +36,7 @@ def fetch_sessions(one, save=True):
         query
     """
     # Query for all sessions in the project with the specified task
-    sessions = one.alyx.rest('sessions', 'list', project=PROJECT, task_protocol=PROTOCOL)
+    sessions = one.alyx.rest('sessions', 'list', project=ibl_project['name'], task_protocol=ibl_project['protocol'])
     df_sessions = pd.DataFrame(sessions).rename(columns={'id': 'eid'})
     df_sessions.drop(columns='projects')
     # Unpack the extended qc from the session dict into dataframe columns
@@ -85,7 +55,7 @@ def fetch_sessions(one, save=True):
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_sessions.to_csv('metadata/sessions.csv', index=False)
+        df_sessions.to_csv(paths['sessions'], index=False)
     return df_sessions
 
 
@@ -127,13 +97,13 @@ def _check_datasets(series, one=None):
     datasets = one.list_datasets(series['eid'])
     # Check each task in the recording
     for task in range(series['n_tasks']):
-        for dataset in KEYDATASETS[f'task0{task}']:
+        for dataset in qc_datasets[f'task0{task}']:
             series[dataset] = dataset in datasets
     for probe in range(series['n_probes']):
-        for dataset in KEYDATASETS[f'probe0{probe}']:
+        for dataset in qc_datasets[f'probe0{probe}']:
             series[dataset] = dataset in datasets  
     # Check if each important dataset is present
-    for dataset in KEYDATASETS['video']:
+    for dataset in qc_datasets['video']:
         series[dataset] = dataset in datasets
     return series
 
@@ -157,7 +127,7 @@ def fetch_insertions(one, save=True):
         the query
     """
     # Query for all probe insertions in the project
-    insertions = one.alyx.rest('insertions', 'list', project=PROJECT)
+    insertions = one.alyx.rest('insertions', 'list', project=project['name'])
     df_insertions = pd.DataFrame(insertions).rename(columns={'id': 'pid', 'session': 'eid', 'name':'probe'})
     # Pull out some basic fields from the session info dict
     df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns')
@@ -170,7 +140,7 @@ def fetch_insertions(one, save=True):
     df_insertions = df_insertions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_insertions.to_csv('metadata/insertions.csv', index=False)
+        df_insertions.to_csv(paths['insertions'], index=False)
     return df_insertions
 
 
@@ -182,8 +152,8 @@ def _unpack_session_info(series):
 
 def _unpack_json(series):
     series['ephys_qc'] = series['json']['qc']
-    JSONKEYS = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
-    for key in JSONKEYS:
+    jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
+    for key in jsonkeys:
         try:
             series[key] = series['json'][key]
         except KeyError:
@@ -227,7 +197,7 @@ def load_metadata():
     Loads recording metadata .csv as a pandas DataFrame. Converts date column 
     to a datetime object and administration time to seconds.
     """
-    df_meta = pd.read_csv('./metadata/metadata.csv')
+    df_meta = pd.read_csv(paths['metadata'])
     df_meta['date'] = df_meta['date'].apply(lambda x: datetime.strptime(x, '%d.%m.%Y').date())
     hms2sec = lambda hms: np.sum(np.array([int(val) for val in hms.split(':')]) * np.array([3600, 60, 1]))
     df_meta['administration_time'] = df_meta['administration_time'].apply(hms2sec)
@@ -314,10 +284,14 @@ def _fetch_LSD_admin_time(series, df_metadata=None):
         return series
     series['LSD_admin'] = session_meta['administration_time'].values[0]
     return series
-    
 
-def fetch_units(one, df_insertions, atlas_res_um=50, uuid_file='', spike_file=''):
-    atlas = AllenAtlas(res_um=atlas_res_um)
+def add_postLSD_epochs(df_sessions, epochs=postLSD_epochs, length=epoch_length):
+    for epoch in epochs:
+        df_sessions[f'LSD{epoch}_start'] = df_sessions.apply(lambda x: x['LSD_admin'] + epoch, axis='columns')
+        df_sessions[f'LSD{epoch}_stop'] = df_sessions[f'LSD{epoch}_start'] + length
+    return df_sessions
+
+def fetch_units(one, df_insertions, uuid_file='', spike_file='', atlas=atlas):
     probe_dfs = []
     for idx, probe in tqdm(df_insertions.iterrows(), total=len(df_insertions)):
         # Load in spike times and cluster info
@@ -355,9 +329,9 @@ def fetch_units(one, df_insertions, atlas_res_um=50, uuid_file='', spike_file=''
     # Concatenate cluster info for all probes
     df_uuids = pd.concat(probe_dfs)
     # Clean up some columns
-    df_uuids.drop(columns=['localCoordinates'])
-    df_uuids['histology'].fillna('')
-    df_uuids['acronym'].fillna('none')
+    df_uuids = df_uuids.drop(columns=['localCoordinates'])
+    df_uuids['histology'] = df_uuids['histology'].fillna('')
+    df_uuids = df_uuids.rename(columns={'acronym': 'region'})
     if uuid_file:
         if not uuid_file.endswith('.pqt'):
             uuid_file = uuid_file.split('.')[0] + '.pqt'
@@ -409,5 +383,5 @@ def fetch_BWM_insertions(one, df_controls, save=True):
     df_insertions = df_insertions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_insertions.to_csv('metadata/BWM_insertions.csv', index=False)
+        df_insertions.to_csv(paths['BWM_insertions'], index=False)
     return df_insertions
