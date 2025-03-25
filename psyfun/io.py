@@ -7,7 +7,6 @@ tqdm.pandas()
 import warnings
 import h5py
 
-# from one.alf.exceptions import *
 from brainbox.io.one import SpikeSortingLoader
 from iblatlas.atlas import AllenAtlas
 atlas = AllenAtlas()
@@ -44,6 +43,7 @@ def fetch_sessions(one, save=True):
     # Check if important datasets are present for the session
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
     df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
+    df_sessions['tasks'] = df_sessions.apply(lambda x: x['task_protocol'].split('/'), axis='columns')
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns')
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns')
@@ -96,11 +96,23 @@ def _check_datasets(series, one=None):
     # Fetch list of datasets listed under the given eid
     datasets = one.list_datasets(series['eid'])
     # Check each task in the recording
-    for task in range(series['n_tasks']):
-        for dataset in qc_datasets[f'task0{task}']:
+    for n, protocol in enumerate(series['tasks']):
+        # TODO: handle spontaneous protocol in 2025 recordings!
+        if 'spontaneous' in protocol: 
+            continue
+        task_datasets = [
+            f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json',
+            f'alf/task_{n:02d}/_ibl_passivePeriods.intervalsTable.csv',
+            ]
+        for dataset in task_datasets:
             series[dataset] = dataset in datasets
-    for probe in range(series['n_probes']):
-        for dataset in qc_datasets[f'probe0{probe}']:
+    for n in range(series['n_probes']):
+        ephys_datasets = [
+            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.sync.npy',
+            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.ap.cbin',
+            f'alf/probe{n:02d}/pykilosort/spikes.times.npy'
+            ]
+        for dataset in ephys_datasets:
             series[dataset] = dataset in datasets  
     # Check if each important dataset is present
     for dataset in qc_datasets['video']:
@@ -127,7 +139,7 @@ def fetch_insertions(one, save=True):
         the query
     """
     # Query for all probe insertions in the project
-    insertions = one.alyx.rest('insertions', 'list', project=project['name'])
+    insertions = one.alyx.rest('insertions', 'list', project=ibl_project['name'])
     df_insertions = pd.DataFrame(insertions).rename(columns={'id': 'pid', 'session': 'eid', 'name':'probe'})
     # Pull out some basic fields from the session info dict
     df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns')
@@ -210,7 +222,12 @@ def _fetch_protocol_timings(series, one=None):
     """
     session_details = one.get_details(series['eid'])
     session_start = datetime.fromisoformat(session_details['start_time'])
-    for i in range(series['n_tasks']):
+    for n, protocol in enumerate(series['tasks']):
+        # TODO: handle spontaneous protocol in 2025 recordings!
+        if 'spontaneous' in protocol: 
+            continue
+        if not series[f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json']:
+            continue
         # try:
             # collection = f'alf/task_0{i}'
             # df = one.load_dataset(eid, '_ibl_passivePeriods.intervalsTable', collection).set_index('Unnamed: 0').rename_axis('')
@@ -230,10 +247,15 @@ def _fetch_protocol_timings(series, one=None):
             #     f"No ALF data found for {eid}, task {i:02d} "
             #     "Reverting to raw task data"
             # )
-        collection = f'raw_task_data_0{i}'
+        collection = f'raw_task_data_{n:02d}'
         # Get start time of spontaneous epoch
         task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
-        spontaneous_start = datetime.fromisoformat(task_settings['SESSION_DATETIME'])
+        spontaneous_start_str = task_settings.get('SESSION_DATETIME')  # try old entry name
+        if spontaneous_start_str is None:
+            spontaneous_start_str = task_settings.get('SESSION_START_TIME')  # try new entry name
+        if spontaneous_start_str is None:
+            raise KeyError("Neither 'SESSION_DATETIME' nor 'SESSION_START_TIME' found")
+        spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
         # Get gabor patch presentation timings for task replay epoch
         df_gabor = one.load_dataset(series['eid'], '_iblrig_stimPositionScreen.raw.csv', collection)
         # first stimulus becomes the header, so we need to pull it out
@@ -252,12 +274,12 @@ def _fetch_protocol_timings(series, one=None):
         spontaneous_stop = rfm_start = spontaneous_start + 5 * 60
         rfm_stop = replay_start
         # Insert everything into series object
-        series[f'task{i:02d}_spontaneous_start'] = spontaneous_start
-        series[f'task{i:02d}_spontaneous_stop'] = spontaneous_stop
-        series[f'task{i:02d}_rfm_start'] = rfm_start
-        series[f'task{i:02d}_rfm_stop'] = rfm_stop
-        series[f'task{i:02d}_replay_start'] = replay_start
-        series[f'task{i:02d}_replay_stop'] = replay_stop
+        series[f'task{n:02d}_spontaneous_start'] = spontaneous_start
+        series[f'task{n:02d}_spontaneous_stop'] = spontaneous_stop
+        series[f'task{n:02d}_rfm_start'] = rfm_start
+        series[f'task{n:02d}_rfm_stop'] = rfm_stop
+        series[f'task{n:02d}_replay_start'] = replay_start
+        series[f'task{n:02d}_replay_stop'] = replay_stop
     return series
 
 
@@ -277,13 +299,14 @@ def _fetch_LSD_admin_time(series, df_metadata=None):
     ]
     # Ensure only one entry is present
     if len(session_meta) < 1:
-        warnings.warn(f"No entries in 'recordings.csv' for {eid}")
+        warnings.warn(f"No entries in 'recordings.csv' for {series['eid']}")
         return series
     elif len(session_meta) > 1:
-        warnings.warn(f"More than one entry in 'recordings.csv' for {eid}")
+        warnings.warn(f"More than one entry in 'recordings.csv' for {series['eid']}")
         return series
     series['LSD_admin'] = session_meta['administration_time'].values[0]
     return series
+
 
 def add_postLSD_epochs(df_sessions, epochs=postLSD_epochs, length=epoch_length):
     for epoch in epochs:
@@ -291,52 +314,140 @@ def add_postLSD_epochs(df_sessions, epochs=postLSD_epochs, length=epoch_length):
         df_sessions[f'LSD{epoch}_stop'] = df_sessions[f'LSD{epoch}_start'] + length
     return df_sessions
 
-def fetch_units(one, df_insertions, uuid_file='', spike_file='', atlas=atlas):
+class PsySpikeSortingLoader(SpikeSortingLoader):
+
+    def merge_clusters(self, clusters, channels, compute_metrics=False, spikes=None):
+        """
+        A simplified method for merging metrics and channel info into the
+        clusters dict. Does not require spikes to save memory, can be
+        optionally given together with compute_metrics=True to re-compute
+        quality control metrics on-the-fly.
+        """
+        nc = clusters['channels'].size
+        metrics = None
+        if 'metrics' in clusters:
+            metrics = clusters.pop('metrics')
+            if metrics.shape[0] != nc:
+                metrics = None
+        if metrics is None or compute_metrics is True:
+            assert spikes is not None
+            metrics = SpikeSortingLoader.compute_metrics(spikes, clusters)
+        for k in metrics.keys():
+            clusters[k] = metrics[k].to_numpy()
+        for k in channels.keys():
+            if k in ['localCoordinates', 'rawInd']: continue
+            clusters[k] = channels[k][clusters['channels']]
+        return clusters
+
+
+def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atlas):
     probe_dfs = []
     for idx, probe in tqdm(df_insertions.iterrows(), total=len(df_insertions)):
         # Load in spike times and cluster info
         pid = probe['pid']
-        loader = SpikeSortingLoader(pid=pid, one=one, atlas=atlas)
-        spikes, clusters, channels = loader.load_spike_sorting()
-        # Merge QC metrics into clusters dict
-        clusters = loader.merge_clusters(spikes, clusters, channels)
-        if clusters is None:
+        loader = PsySpikeSortingLoader(pid=pid, one=one, atlas=atlas)
+        try:
+            clusters = loader.load_spike_sorting_object('clusters')
+            channels = loader.load_channels()
+        except KeyError:
             continue
-        clusters['uuids'] = clusters['uuids'].values  # take values out of dataframe
-        # Unpack dict of arrays into list of dicts
-        cluster_infos = [{key:val[i] for key, val in clusters.items()} for i, cid in enumerate(clusters['cluster_id'])]
+        if clusters is None:
+            print(f"WARNING: no clusters for {pid}")
+            continue
+        clusters['uuids'] = clusters['uuids'].to_numpy()  # take values out of dataframe
+        clusters = loader.merge_clusters(clusters, channels)
         # Build dataframe from list for this probe
-        df_probe = pd.DataFrame(cluster_infos).rename(columns={'uuids':'uuid'})
+        df_probe = pd.DataFrame(clusters).rename(columns={'uuids':'uuid', 'depths':'depth', 'channels':'channel'})
         # Add additional metadata to cluster info df
         for field in ['subject', 'session_n', 'eid', 'probe', 'pid']:
             df_probe[field] = probe[field]
         df_probe['histology'] = loader.histology
-        # Append to list
-        probe_dfs.append(df_probe)
-        # Save spike times for each cluster in HDF5 file
+        # Save spike times if a filename is given
         if spike_file:
+            # Check hdf5 filename
             if not spike_file.endswith('.h5'):
                 spike_file = spike_file.split('.')[0] + '.h5'
-            with h5py.File(spike_file, 'a') as h5file:
-                for _, cinfo in df_probe.iterrows():
-                    # Get spike times
-                    spike_times = spikes.times[spikes.clusters == cinfo['cluster_id']]
-                    # Delete existing dataset if present
-                    if cinfo['uuid'] in h5file:
-                        del h5file[cinfo['uuid']]
-                    # Create new dataset for this unit
-                    h5file.create_dataset(cinfo['uuid'], data=spike_times)
+            # Load spike time for each probe collection separately to conserve memory
+            for collection in loader.collections:
+                spikes = one.load_object(probe['eid'], collection=collection, obj='spikes', attribute=['times', 'clusters'])
+                with h5py.File(spike_file, 'a') as h5file:
+                    # Store spike times for each cluster as a separate dataset in the hdf file
+                    for uuid, cid in zip(df_probe['uuid'], df_probe['cluster_id']):
+                        # Separate spike times for each cluster
+                        spike_times = spikes['times'][spikes['clusters'] == cid]
+                        # Delete existing dataset if present
+                        if uuid in h5file: del h5file[uuid]
+                        # Create new dataset for this unit
+                        h5file.create_dataset(uuid, data=spike_times)
+                del spikes
+        del clusters, loader
+        # Append to list
+        probe_dfs.append(df_probe)
     # Concatenate cluster info for all probes
-    df_uuids = pd.concat(probe_dfs)
+    df_uinfo = pd.concat(probe_dfs)
     # Clean up some columns
-    df_uuids = df_uuids.drop(columns=['localCoordinates'])
-    df_uuids['histology'] = df_uuids['histology'].fillna('')
-    df_uuids = df_uuids.rename(columns={'acronym': 'region'})
-    if uuid_file:
-        if not uuid_file.endswith('.pqt'):
-            uuid_file = uuid_file.split('.')[0] + '.pqt'
-        df_uuids.to_parquet(uuid_file, index=False)
-    return df_uuids
+    df_uinfo['histology'] = df_uinfo['histology'].fillna('')
+    df_uinfo = df_uinfo.rename(columns={'acronym': 'region'})
+    if uinfo_file:
+        if not uinfo_file.endswith('.pqt'):
+            uinfo_file = uinfo_file.split('.')[0] + '.pqt'
+        df_uinfo.to_parquet(uinfo_file, index=False)
+    return df_uinfo
+
+
+# def fetch_units(one, df_insertions, uuid_file='', spike_file='', atlas=atlas, qc_tag=['ks2_label', 'good']):
+#     probe_dfs = []
+#     for idx, probe in tqdm(df_insertions.iterrows(), total=len(df_insertions)):
+#         # Load in spike times and cluster info
+#         pid = probe['pid']
+#         loader = SpikeSortingLoader(pid=pid, one=one, atlas=atlas)
+#         spikes, clusters, channels = loader.load_spike_sorting()
+#         # Merge QC metrics into clusters dict
+#         clusters = loader.merge_clusters(spikes, clusters, channels)
+#         if clusters is None:
+#             continue
+#         clusters['uuids'] = clusters['uuids'].values  # take values out of dataframe
+#         # Unpack dict of arrays into list of dicts
+#         cluster_infos = [{key:val[i] for key, val in clusters.items()} for i, cid in enumerate(clusters['cluster_id'])]
+#         # Build dataframe from list for this probe
+#         df_probe = pd.DataFrame(cluster_infos).rename(columns={'uuids':'uuid'})
+#         if qc_tag:
+#             try:
+#                 df_probe = df_probe[df_probe[qc_tag[0]] == qc_tag[1]]
+#             except:
+#                 print(f"WARNING: no {qc_tag[0]} found")
+#                 print(df_probe.columns)
+#         # Add additional metadata to cluster info df
+#         for field in ['subject', 'session_n', 'eid', 'probe', 'pid']:
+#             df_probe[field] = probe[field]
+#         df_probe['histology'] = loader.histology
+#         # Append to list
+#         probe_dfs.append(df_probe)
+#         # Save spike times for each cluster in HDF5 file
+#         if spike_file:
+#             if not spike_file.endswith('.h5'):
+#                 spike_file = spike_file.split('.')[0] + '.h5'
+#             with h5py.File(spike_file, 'a') as h5file:
+#                 for _, cinfo in df_probe.iterrows():
+#                     # Get spike times
+#                     spike_times = spikes.times[spikes.clusters == cinfo['cluster_id']]
+#                     # Delete existing dataset if present
+#                     if cinfo['uuid'] in h5file:
+#                         del h5file[cinfo['uuid']]
+#                     # Create new dataset for this unit
+#                     h5file.create_dataset(cinfo['uuid'], data=spike_times)
+#     # Concatenate cluster info for all probes
+#     df_uuids = pd.concat(probe_dfs)
+#     # Clean up some columns
+#     df_uuids = df_uuids.drop(columns=['localCoordinates'])
+#     df_uuids['histology'] = df_uuids['histology'].fillna('')
+#     df_uuids = df_uuids.rename(columns={'acronym': 'region'})
+#     if uuid_file:
+#         if not uuid_file.endswith('.pqt'):
+#             uuid_file = uuid_file.split('.')[0] + '.pqt'
+#         df_uuids.to_parquet(uuid_file, index=False)
+#     return df_uuids
+
 
 def load_units(spike_file, uuids):
     if not spike_file.endswith('.h5'):

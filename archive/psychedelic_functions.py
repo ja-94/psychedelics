@@ -196,13 +196,11 @@ def _get_spike_times_in_interval(x, start, stop):
         return np.nan
     return x['spike_times'][(x['spike_times'] >= t0) & (x['spike_times'] <= t1)]
 
-def remap(acronyms, source='Allen', dest='Beryl', combine=False, split_thalamus=False,
-          abbreviate=True, brainregions=None):
-    br = brainregions or BrainRegions()
+def remap(acronyms, source='Allen', dest='Beryl'):
+    br = BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
     return remapped_acronyms
-
 
 def combine_regions(allen_acronyms, split_thalamus=False, abbreviate=False):
     print(len(allen_acronyms))
