@@ -395,60 +395,6 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
     return df_uinfo
 
 
-# def fetch_units(one, df_insertions, uuid_file='', spike_file='', atlas=atlas, qc_tag=['ks2_label', 'good']):
-#     probe_dfs = []
-#     for idx, probe in tqdm(df_insertions.iterrows(), total=len(df_insertions)):
-#         # Load in spike times and cluster info
-#         pid = probe['pid']
-#         loader = SpikeSortingLoader(pid=pid, one=one, atlas=atlas)
-#         spikes, clusters, channels = loader.load_spike_sorting()
-#         # Merge QC metrics into clusters dict
-#         clusters = loader.merge_clusters(spikes, clusters, channels)
-#         if clusters is None:
-#             continue
-#         clusters['uuids'] = clusters['uuids'].values  # take values out of dataframe
-#         # Unpack dict of arrays into list of dicts
-#         cluster_infos = [{key:val[i] for key, val in clusters.items()} for i, cid in enumerate(clusters['cluster_id'])]
-#         # Build dataframe from list for this probe
-#         df_probe = pd.DataFrame(cluster_infos).rename(columns={'uuids':'uuid'})
-#         if qc_tag:
-#             try:
-#                 df_probe = df_probe[df_probe[qc_tag[0]] == qc_tag[1]]
-#             except:
-#                 print(f"WARNING: no {qc_tag[0]} found")
-#                 print(df_probe.columns)
-#         # Add additional metadata to cluster info df
-#         for field in ['subject', 'session_n', 'eid', 'probe', 'pid']:
-#             df_probe[field] = probe[field]
-#         df_probe['histology'] = loader.histology
-#         # Append to list
-#         probe_dfs.append(df_probe)
-#         # Save spike times for each cluster in HDF5 file
-#         if spike_file:
-#             if not spike_file.endswith('.h5'):
-#                 spike_file = spike_file.split('.')[0] + '.h5'
-#             with h5py.File(spike_file, 'a') as h5file:
-#                 for _, cinfo in df_probe.iterrows():
-#                     # Get spike times
-#                     spike_times = spikes.times[spikes.clusters == cinfo['cluster_id']]
-#                     # Delete existing dataset if present
-#                     if cinfo['uuid'] in h5file:
-#                         del h5file[cinfo['uuid']]
-#                     # Create new dataset for this unit
-#                     h5file.create_dataset(cinfo['uuid'], data=spike_times)
-#     # Concatenate cluster info for all probes
-#     df_uuids = pd.concat(probe_dfs)
-#     # Clean up some columns
-#     df_uuids = df_uuids.drop(columns=['localCoordinates'])
-#     df_uuids['histology'] = df_uuids['histology'].fillna('')
-#     df_uuids = df_uuids.rename(columns={'acronym': 'region'})
-#     if uuid_file:
-#         if not uuid_file.endswith('.pqt'):
-#             uuid_file = uuid_file.split('.')[0] + '.pqt'
-#         df_uuids.to_parquet(uuid_file, index=False)
-#     return df_uuids
-
-
 def load_units(spike_file, uuids):
     if not spike_file.endswith('.h5'):
         spike_file = spike_file.split('.')[0] + '.h5'
