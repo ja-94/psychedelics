@@ -1,3 +1,11 @@
+-Solve issue with dropping last epochs between df_epochs and df_pca
+-Separate PCA (one function that just givefs back the pcs) from downstream (variance, tau, ngsc...)
+-Look at loadings too! not just the variance explained. Next step look at loadings accross conditions, angle changes?
+
+
+
+
+
 
 
 Meeting with Joana 10/01/2025
