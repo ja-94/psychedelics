@@ -224,30 +224,9 @@ def _fetch_protocol_timings(series, one=None):
     session_start = datetime.fromisoformat(session_details['start_time'])
     task_count = 0
     for n, protocol in enumerate(series['tasks']):
-        # TODO: handle spontaneous protocol in 2025 recordings!
-        if 'spontaneous' in protocol: 
-            continue
+
         if not series[f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json']:
             continue
-        # try:
-            # collection = f'alf/task_0{i}'
-            # df = one.load_dataset(eid, '_ibl_passivePeriods.intervalsTable', collection).set_index('Unnamed: 0').rename_axis('')
-            # spontaneous_start = df.loc['start', 'spontaneousActivity']
-            # spontaneous_stop = df.loc['stop', 'spontaneousActivity']
-            # rfm_start = df.loc['start', 'RFM']
-            # rfm_stop = df.loc['stop', 'RFM']
-            # replay_start = df.loc['stop', 'taskReplay']
-            # # Note: in intervals table, the protocol doesn't end until a new
-            # # protocol is started or the recording is stopped, so we 
-            # # define task replay stop as the last garbor/valve event
-            # gabors = one.load_dataset(eid, '_ibl_passiveGabor.table', collection)
-            # stims = one.load_dataset(eid, '_ibl_passiveStims.table', collection)
-            # replay_stop = np.max([gabors['stop'].max(), stims.max().max()])
-        # except ALFObjectNotFound:
-            # warnings.warn(
-            #     f"No ALF data found for {eid}, task {i:02d} "
-            #     "Reverting to raw task data"
-            # )
         collection = f'raw_task_data_{n:02d}'
         # Get start time of spontaneous epoch
         task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
@@ -257,6 +236,11 @@ def _fetch_protocol_timings(series, one=None):
         if spontaneous_start_str is None:
             raise KeyError("Neither 'SESSION_DATETIME' nor 'SESSION_START_TIME' found")
         spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
+        # TODO: handle spontaneous protocol in 2025 recordings more gracefully!
+        if 'spontaneous' in protocol:
+            # Assume LSD was given at start of spontaneous period
+            series['LSD_admin'] = (spontaneous_start - session_start).seconds
+            continue
         # Get gabor patch presentation timings for task replay epoch
         df_gabor = one.load_dataset(series['eid'], '_iblrig_stimPositionScreen.raw.csv', collection)
         # first stimulus becomes the header, so we need to pull it out
