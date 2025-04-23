@@ -8,11 +8,11 @@ ibl_project = {
 
 paths = {
     'metadata': 'metadata/metadata.csv',
-    'sessions': 'metadata/sessions.csv',
-    'insertions': 'metadata/insertions.csv',
+    'sessions': 'metadata/sessions.pqt',
+    'insertions': 'metadata/insertions.pqt',
     'units': 'data/units.pqt',
     'spikes': 'data/spikes.h5',
-    'BWM_insertions': 'metadata/BWM_insertions.csv',
+    'BWM_insertions': 'metadata/BWM_insertions.pqt',
     'BWM_units': 'data/BWM_units.pqt',
     'BWM_spikes': 'data/BWM_spikes.h5',
 }

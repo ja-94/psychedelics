@@ -55,7 +55,7 @@ def fetch_sessions(one, save=True):
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_sessions.to_csv(paths['sessions'], index=False)
+        df_sessions.to_parquet(paths['sessions'], index=False)
     return df_sessions
 
 
@@ -152,7 +152,7 @@ def fetch_insertions(one, save=True):
     df_insertions = df_insertions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_insertions.to_csv(paths['insertions'], index=False)
+        df_insertions.to_parquet(paths['insertions'], index=False)
     return df_insertions
 
 
@@ -441,5 +441,5 @@ def fetch_BWM_insertions(one, df_controls, save=True):
     df_insertions = df_insertions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
     # Save as csv
     if save:
-        df_insertions.to_csv(paths['BWM_insertions'], index=False)
+        df_insertions.to_parquet(paths['BWM_insertions'], index=False)
     return df_insertions
