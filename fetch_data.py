@@ -15,7 +15,7 @@ one = ONE()
 # df_sessions = io.fetch_sessions(one, save=True)
 
 # Query the database for all probe insertions associated with this project (metadata)
-# df_insertions = io.fetch_insertions(one, save=False)
+df_insertions = io.fetch_insertions(one, save=False)
 
 # Load session and insertion info from file if already downloaded
 # df_sessions = pd.read_csv(paths['sessions'])
@@ -39,5 +39,5 @@ one = ONE()
 # Fetch probe insertion info for these control recordings
 # df_insertions_bwm = io.fetch_BWM_insertions(one, df_controls)
 # Or load task start times from saved file
-df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
-df_uinfo = io.fetch_unit_info(one, df_insertions_bwm, uinfo_file=paths['BWM_units'], spike_file=paths['BWM_spikes'])
+# df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+# df_uinfo = io.fetch_unit_info(one, df_insertions_bwm, uinfo_file=paths['BWM_units'], spike_file=paths['BWM_spikes'])
