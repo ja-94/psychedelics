@@ -11,10 +11,10 @@ from psyfun.config import paths, qc_datasets, cmaps
 # Instantiate database connection
 one = ONE()
 
-# Query the database for all sessions associated with this project
+# Query the database for all sessions associated with this project (metadata)
 # df_sessions = io.fetch_sessions(one, save=True)
 
-# Query the database for all probe insertions associated with this project
+# Query the database for all probe insertions associated with this project (metadata)
 # df_insertions = io.fetch_insertions(one, save=False)
 
 # Load session and insertion info from file if already downloaded
@@ -25,7 +25,8 @@ one = ONE()
 # uinfo_file = paths['units']  # download spike times and save to file
 # Choose to save spike times as well as cluster info
 # spike_file = paths['spikes']  # download spike times and save to file
-# Download cluster info and spike times from server
+# Download cluster info and spike times from server (if spike_file is empty no spikes are downloaded, 
+# df_units has no spike times because they are heavy so we are doing loading on demand for spikes)
 # df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=uinfo_file, spike_file=spike_file)
 
 # Download task start times for all BWM data

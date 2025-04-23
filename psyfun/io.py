@@ -378,7 +378,7 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
                         # Delete existing dataset if present
                         if uuid in h5file: del h5file[uuid]
                         # Create new dataset for this unit
-                        h5file.create_dataset(uuid, data=spike_times)
+                        h5file.create_dataset(uuid, data=spike_times) #One single file with all the spikes, which can be accessed selectively by cluster without loading everything
                 del spikes
         del clusters, loader
         # Append to list
@@ -396,6 +396,7 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
 
 
 def load_units(spike_file, uuids):
+    #Takes in a list of unit IDs and the spike file name
     if not spike_file.endswith('.h5'):
         spike_file = spike_file.split('.')[0] + '.h5'
     units = []
