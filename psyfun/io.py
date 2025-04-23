@@ -224,10 +224,11 @@ def _fetch_protocol_timings(series, one=None):
     session_start = datetime.fromisoformat(session_details['start_time'])
     task_count = 0
     for n, protocol in enumerate(series['tasks']):
-
-        if not series[f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json']:
-            continue
         collection = f'raw_task_data_{n:02d}'
+        if (not series[f'{collection}/_iblrig_taskSettings.raw.json'] or 
+            np.isnan(series[f'{collection}/_iblrig_taskSettings.raw.json'])):
+            print(f"WARNING: no taskSettings for {series['eid']} {collection}")
+            continue
         # Get start time of spontaneous epoch
         task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
         spontaneous_start_str = task_settings.get('SESSION_DATETIME')  # try old entry name
