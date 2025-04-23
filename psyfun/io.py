@@ -222,6 +222,7 @@ def _fetch_protocol_timings(series, one=None):
     """
     session_details = one.get_details(series['eid'])
     session_start = datetime.fromisoformat(session_details['start_time'])
+    task_count = 0
     for n, protocol in enumerate(series['tasks']):
         # TODO: handle spontaneous protocol in 2025 recordings!
         if 'spontaneous' in protocol: 
@@ -274,12 +275,13 @@ def _fetch_protocol_timings(series, one=None):
         spontaneous_stop = rfm_start = spontaneous_start + 5 * 60
         rfm_stop = replay_start
         # Insert everything into series object
-        series[f'task{n:02d}_spontaneous_start'] = spontaneous_start
-        series[f'task{n:02d}_spontaneous_stop'] = spontaneous_stop
-        series[f'task{n:02d}_rfm_start'] = rfm_start
-        series[f'task{n:02d}_rfm_stop'] = rfm_stop
-        series[f'task{n:02d}_replay_start'] = replay_start
-        series[f'task{n:02d}_replay_stop'] = replay_stop
+        series[f'task{task_count:02d}_spontaneous_start'] = spontaneous_start
+        series[f'task{task_count:02d}_spontaneous_stop'] = spontaneous_stop
+        series[f'task{task_count:02d}_rfm_start'] = rfm_start
+        series[f'task{task_count:02d}_rfm_stop'] = rfm_stop
+        series[f'task{task_count:02d}_replay_start'] = replay_start
+        series[f'task{task_count:02d}_replay_stop'] = replay_stop
+        task_count += 1
     return series
 
 
