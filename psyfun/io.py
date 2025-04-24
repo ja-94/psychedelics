@@ -58,6 +58,9 @@ def fetch_sessions(one, save=True):
         df_sessions.to_parquet(paths['sessions'], index=False)
     return df_sessions
 
+def _label_LSD_or_control (series, file):
+    #Make function that looks up file with labels and creates new column in series
+    pass
 
 def _unpack_session_dict(series, one=None):
     """
