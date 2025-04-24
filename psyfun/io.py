@@ -220,17 +220,18 @@ def _fetch_protocol_timings(series, one=None):
     """
     Get timings of protocol events throughout the recording sesison.
     """
+    assert one is not None
     session_details = one.get_details(series['eid'])
     session_start = datetime.fromisoformat(session_details['start_time'])
     task_count = 0
     for n, protocol in enumerate(series['tasks']):
         collection = f'raw_task_data_{n:02d}'
-        if (not series[f'{collection}/_iblrig_taskSettings.raw.json'] or 
-            np.isnan(series[f'{collection}/_iblrig_taskSettings.raw.json'])):
+        try:
+            # Get start time of spontaneous epoch
+            task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
+        except:
             print(f"WARNING: no taskSettings for {series['eid']} {collection}")
             continue
-        # Get start time of spontaneous epoch
-        task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
         spontaneous_start_str = task_settings.get('SESSION_DATETIME')  # try old entry name
         if spontaneous_start_str is None:
             spontaneous_start_str = task_settings.get('SESSION_START_TIME')  # try new entry name
@@ -239,8 +240,10 @@ def _fetch_protocol_timings(series, one=None):
         spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
         # TODO: handle spontaneous protocol in 2025 recordings more gracefully!
         if 'spontaneous' in protocol:
-            # Assume LSD was given at start of spontaneous period
-            series['LSD_admin'] = (spontaneous_start - session_start).seconds
+            # Check for one session where LSD admin was delayed by ~40min
+            if series['eid'] != '4b874c49-3c0c-4f30-9b1f-74c9dbfb57c8':  
+                # Assume LSD was given at start of spontaneous period
+                series['LSD_admin'] = (spontaneous_start - session_start).seconds
             continue
         # Get gabor patch presentation timings for task replay epoch
         df_gabor = one.load_dataset(series['eid'], '_iblrig_stimPositionScreen.raw.csv', collection)
