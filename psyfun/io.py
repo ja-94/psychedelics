@@ -50,6 +50,9 @@ def fetch_sessions(one, save=True):
     # Add LSD administration time
     df_meta = load_metadata()
     df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns')
+    # df_sessions = df_sessions.progress_apply(_label_LSD_or_control, one = one, axis = 'columns')
+    df_sessions = _label_LSD_or_control(df_sessions, one = one)
+
     # Label and sort by session number for each subject
     df_sessions['session_n'] = df_sessions.groupby('subject')['start_time'].rank(method='dense').astype(int)
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
@@ -58,9 +61,25 @@ def fetch_sessions(one, save=True):
         df_sessions.to_parquet(paths['sessions'], index=False)
     return df_sessions
 
-def _label_LSD_or_control (series, file):
+def _label_LSD_or_control (df, one = None):
     #Make function that looks up file with labels and creates new column in series
-    pass
+    controls=[['ZFM-08631', '2025-03-21'],
+            ['ZFM-08584', '2025-03-19'],
+            ['ZFM-08457', '2025-03-18'],
+            ['ZFM-08631', '2025-03-18'],
+            ['ZFM-08458', '2025-03-14'],
+            ['ZFM-08631', '2025-03-12'],
+            ['ZFM-08584', '2025-03-12'],
+            ['ZFM-08457', '2025-03-11'],
+            ['ZFM-08458', '2025-03-11']]
+    for i in controls:
+        i.append(str(one.search(subject = i[0], date_range = i[1])[0]))
+    controls_eids = [session[2] for session in controls]
+    controls_column = df['eid'].isin(controls_eids)
+    df.insert(0, 'Control_recording', controls_column, True)
+    # df['Control_recording'] = df['eid'].isin(controls_eids)
+
+    return df
 
 def _unpack_session_dict(series, one=None):
     """
