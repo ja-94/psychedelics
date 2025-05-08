@@ -1,3 +1,17 @@
+-Sliding window analysis
+-Per area analysis
+-Look at loadings: how are the contributions distributed? Are there few very important neurons for the
+first components? Or is it more homogeneously distributed?
+-Think RDMs? Plot matrix with angles between different epochs?
+
+-Plot versions:
+    -Jaime vs. Joana
+    -Jaime vs. Control
+    -Joana vs. Control
+    -Jaime+Joana vs Control
+
+
+
 -Make list of LSD vs control by eid
 
 
