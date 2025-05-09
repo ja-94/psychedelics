@@ -1,3 +1,10 @@
+Plot trajectories of PC1 instead of angles. PC1 is a high-dimensional vector, do PCA? Or RSA 
+because each recording will have a different number of components? RDM of angles?
+
+
+-Time warp!
+
+
 -Sliding window analysis
 -Per area analysis
 -Look at loadings: how are the contributions distributed? Are there few very important neurons for the

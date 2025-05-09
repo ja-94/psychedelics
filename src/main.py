@@ -1,0 +1,1 @@
+df_pca_categorical.rename(columns=task_events, inplace=True)
