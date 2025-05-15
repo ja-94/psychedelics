@@ -45,12 +45,13 @@ def fetch_sessions(one, save=True):
     df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
     df_sessions['tasks'] = df_sessions.apply(lambda x: x['task_protocol'].split('/'), axis='columns')
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns')
+    # Add label for control sessions
+    df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns')
     # Add LSD administration time
     df_meta = load_metadata()
     df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns')
-    # df_sessions = df_sessions.progress_apply(_label_LSD_or_control, one = one, axis = 'columns')
     df_sessions = _label_LSD_or_control(df_sessions, one = one)
 
     # Label and sort by session number for each subject
