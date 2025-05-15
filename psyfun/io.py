@@ -252,7 +252,7 @@ def _fetch_protocol_timings(series, one=None):
         if spontaneous_start_str is None:
             raise KeyError("Neither 'SESSION_DATETIME' nor 'SESSION_START_TIME' found")
         spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
-        # TODO: handle spontaneous protocol in 2025 recordings more gracefully!
+        # FIXME: handle spontaneous protocol in 2025 recordings more gracefully!
         if 'spontaneous' in protocol:
             # Check for one session where LSD admin was delayed by ~40min
             if series['eid'] != '4b874c49-3c0c-4f30-9b1f-74c9dbfb57c8':  
