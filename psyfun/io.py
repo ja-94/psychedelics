@@ -61,25 +61,15 @@ def fetch_sessions(one, save=True):
         df_sessions.to_parquet(paths['sessions'], index=False)
     return df_sessions
 
-def _label_LSD_or_control (df, one = None):
-    #Make function that looks up file with labels and creates new column in series
-    controls=[['ZFM-08631', '2025-03-21'],
-            ['ZFM-08584', '2025-03-19'],
-            ['ZFM-08457', '2025-03-18'],
-            ['ZFM-08631', '2025-03-18'],
-            ['ZFM-08458', '2025-03-14'],
-            ['ZFM-08631', '2025-03-12'],
-            ['ZFM-08584', '2025-03-12'],
-            ['ZFM-08457', '2025-03-11'],
-            ['ZFM-08458', '2025-03-11']]
-    for i in controls:
-        i.append(str(one.search(subject = i[0], date_range = i[1])[0]))
-    controls_eids = [session[2] for session in controls]
-    controls_column = df['eid'].isin(controls_eids)
-    df.insert(0, 'Control_recording', controls_column, True)
-    # df['Control_recording'] = df['eid'].isin(controls_eids)
-
-    return df
+def _label_controls (session, controls=df_controls):
+    eid = session['eid']
+    control_session = controls.query('eid == @eid')
+    if len(control_session) == 1:
+        return True
+    elif len(control_session) == 0:
+        return False
+    elif len(control_sesison) > 1:
+        raise ValueError("More than one entry in df_controls!")
 
 def _unpack_session_dict(series, one=None):
     """
