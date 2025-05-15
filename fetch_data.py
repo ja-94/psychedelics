@@ -1,43 +1,79 @@
+import argparse
 import numpy as np
 import pandas as pd
 pd.set_option('future.no_silent_downcasting', True)
-import matplotlib as mpl
-from matplotlib import pyplot as plt
 
 from one.api import ONE
-from psyfun import io, plots, atlas
-from psyfun.config import paths, qc_datasets, cmaps
+from psyfun import io
+from psyfun.config import paths, BWMPRETASKLENGTH
 
-# Instantiate database connection
+parser = argparse.ArgumentParser(description="Download and process IBL data flexibly with command-line flags.")
+# Psychedelics options
+parser.add_argument('-s', '--fetch_sessions', action='store_true', help='Fetch session data from server')
+parser.add_argument('-i', '--fetch_insertions', action='store_true', help='Fetch insertion data from server')
+parser.add_argument('-u', '--fetch_uinfo', action='store_true', help='Fetch unit/cluster info from server (no spike times)')
+parser.add_argument('-t', '--fetch_spikes', action='store_true', help='Fetch spike times from server (requires uinfo)')
+parser.add_argument('-a', '--all', action='store_true', help='Fetch everything: sessions, insertions, uinfo, spikes (not BWM)')
+# BWM options (no shortcut for all)
+parser.add_argument('--fetch_bwm_insertions', action='store_true', help='Fetch BWM probe insertions from server')
+parser.add_argument('--fetch_bwm_uinfo', action='store_true', help='Fetch BWM unit/cluster info from server (no spike times)')
+parser.add_argument('--fetch_bwm_spikes', action='store_true', help='Fetch BWM spike times from server (requires uinfo)')
+args = parser.parse_args()
+
+# --all sets all relevant flags True
+if args.all:
+    args.fetch_sessions = True
+    args.fetch_insertions = True
+    args.fetch_uinfo = True
+    args.fetch_spikes = True
+
 one = ONE()
 
-# Query the database for all sessions associated with this project (metadata)
-# df_sessions = io.fetch_sessions(one, save=True)
+# Session metadata
+if args.fetch_sessions:
+    print("Fetching sessions from server and saving...")
+    df_sessions = io.fetch_sessions(one, save=True)
 
-# Query the database for all probe insertions associated with this project (metadata)
-df_insertions = io.fetch_insertions(one, save=False)
+# Probe insertion metadata
+df_insertions = None
+if args.fetch_insertions:
+    print("Fetching probe insertions from server and saving...")
+    df_insertions = io.fetch_insertions(one, save=True)
 
-# Load session and insertion info from file if already downloaded
-# df_sessions = pd.read_csv(paths['sessions'])
-# df_insertions = pd.read_csv(paths['insertions'])
+# Units info and spike times (optional)
+if args.fetch_uinfo or args.fetch_spikes:
+    # Fetch or load insertions as needed
+    if df_insertions is None:
+        print(f"Loading insertions from {paths['insertions']}")
+        try:
+            df_insertions = pd.read_csv(paths['insertions'])
+        except FileNotFoundError:
+            raise RuntimeError("Must run 'fetch_data.py --fetch_insertions' before trying to fetch units.")
+    print("Fetching unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
+    spike_file = paths['spikes'] if args.fetch_spikes else ''
+    df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file)
 
-# Choose to save unit info
-# uinfo_file = paths['units']  # download spike times and save to file
-# Choose to save spike times as well as cluster info
-# spike_file = paths['spikes']  # download spike times and save to file
-# Download cluster info and spike times from server (if spike_file is empty no spikes are downloaded, 
-# df_units has no spike times because they are heavy so we are doing loading on demand for spikes)
-# df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=uinfo_file, spike_file=spike_file)
+# BWM Insertions
+df_insertions_bwm = None
+if args.fetch_bwm_insertions:
+    # BWM task starts is always loaded from file
+    print("Loading BWM task starts from file...")
+    df_bwm = pd.read_csv('metadata/BWM_task_starts.csv')
+    # Always apply BWM cutoff from config
+    print(f"Filtering controls using BWMPRETASKLENGTH={BWMPRETASKLENGTH}")
+    df_controls = df_bwm.query('task_start > @BWMPRETASKLENGTH')
+    print("Fetching BWM insertions from server and saving...")
+    df_insertions_bwm = io.fetch_BWM_insertions(one, df_controls)
+else:
+    print(f"Loading BWM insertions from {paths['BWM_insertions']}")
+    df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
 
-# Download task start times for all BWM data
-# df_bwm = io.fetch_BWM_task_starts(one)
-# Or load task start times from saved file
-# df_bwm = pd.read_csv('metadata/BWM_task_starts.csv')
-# Apply cutoff to select ones we can use as controls
-# df_controls = df_bwm.query('task_start > @cutoff')
-
-# Fetch probe insertion info for these control recordings
-# df_insertions_bwm = io.fetch_BWM_insertions(one, df_controls)
-# Or load task start times from saved file
-# df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
-# df_uinfo = io.fetch_unit_info(one, df_insertions_bwm, uinfo_file=paths['BWM_units'], spike_file=paths['BWM_spikes'])
+# BWM Units (cluster info) and Spikes (optional)
+if args.fetch_bwm_uinfo or args.fetch_bwm_spikes:
+    if df_insertions_bwm is None:
+        try:
+            df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+        except FileNotFoundError:
+            raise RuntimeError("Run 'fetch_data.py --fetch_bwm_insertions' before trying to fetch units.")
+    spike_file = paths['BWM_spikes'] if args.fetch_bwm_spikes else ''
+    df_uinfo = io.fetch_unit_info(one, df_insertions_bwm, uinfo_file=paths['BWM_units'], spike_file=spike_file)
