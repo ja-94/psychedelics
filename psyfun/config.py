@@ -60,6 +60,8 @@ control_recordings = [
 ]
 df_controls = pd.DataFrame(data=control_recordings, columns=['subject', 'date', 'eid'])
 
+bwm_pretask_length = 5 * 60  # seconds 
+
 epoch_length = 5 * 60  # seconds
 postLSD_epochs = np.arange(0, 30, 10) * 60  # seconds
 
