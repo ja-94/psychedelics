@@ -40,22 +40,20 @@ def fetch_sessions(one, save=True, qc=False):
     df_sessions.drop(columns='projects')
     if qc:
         # Unpack the extended qc from the session dict into dataframe columns
-        df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns')
+        df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns').copy()
     # Check if important datasets are present for the session
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
     df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
     df_sessions['tasks'] = df_sessions.apply(lambda x: x['task_protocol'].split('/'), axis='columns')
-    df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns')
+    df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns').copy()
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
     df_sessions['new_recording'] = df_sessions['start_time'].apply(lambda x: datetime.fromisoformat(x) > datetime(2025, 1, 1))
     # Fetch task protocol timings and add to dataframe
-    df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns')
+    df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns').copy()
     # Add LSD administration time
     df_meta = load_metadata()
-    df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns')
-    df_sessions = _label_LSD_or_control(df_sessions, one = one)
-
+    df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns').copy()
     # Label and sort by session number for each subject
     df_sessions['session_n'] = df_sessions.groupby('subject')['start_time'].rank(method='dense').astype(int)
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
