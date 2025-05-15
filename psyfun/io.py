@@ -48,6 +48,7 @@ def fetch_sessions(one, save=True, qc=False):
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns')
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
+    df_sessions['new_recording'] = df_sessions['start_time'].apply(lambda x: datetime.fromisoformat(x) > datetime(2025, 1, 1))
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns')
     # Add LSD administration time
