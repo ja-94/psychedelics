@@ -13,7 +13,7 @@ atlas = AllenAtlas()
 
 from .config import *
 
-def fetch_sessions(one, save=True):
+def fetch_sessions(one, save=True, qc=False):
     """
     Query Alyx for sessions tagged in the psychedelics project and add session
     info to a dataframe. Sessions are restricted to those with the 
@@ -38,8 +38,9 @@ def fetch_sessions(one, save=True):
     sessions = one.alyx.rest('sessions', 'list', project=ibl_project['name'], task_protocol=ibl_project['protocol'])
     df_sessions = pd.DataFrame(sessions).rename(columns={'id': 'eid'})
     df_sessions.drop(columns='projects')
-    # Unpack the extended qc from the session dict into dataframe columns
-    df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns')
+    if qc:
+        # Unpack the extended qc from the session dict into dataframe columns
+        df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns')
     # Check if important datasets are present for the session
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
     df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
