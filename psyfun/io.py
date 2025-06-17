@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -305,11 +306,33 @@ def _fetch_LSD_admin_time(series, df_metadata=None):
     return series
 
 
-def add_postLSD_epochs(df_sessions, epochs=postLSD_epochs, length=epoch_length):
+# def sliding_epochs(df_sessions, t0='LSD_admin', epochs=postLSD_epochs, length=epoch_length):
+#     prefix = t0.rstrip('_start').rstrip('_stop')
+#     for epoch in epochs:
+#         label = str(int(epoch))
+#         df_sessions[f'{prefix}_{label}_start'] = df_sessions.apply(lambda x: x[t0] + epoch, axis='columns').copy()
+#         df_sessions[f'{prefix}_{label}_stop'] = df_sessions[f'{prefix}_{label}_start'] + length
+#     return df_sessions
+
+def sliding_epochs(df_sessions, t0='LSD_admin', epochs=postLSD_epochs, length=epoch_length, return_cols=False):
+    prefix = re.sub(r'(_start|_stop)$', '', t0)
+    # Prepare a dict to hold all new columns
+    new_cols = {}
     for epoch in epochs:
-        df_sessions[f'LSD{epoch}_start'] = df_sessions.apply(lambda x: x['LSD_admin'] + epoch, axis='columns')
-        df_sessions[f'LSD{epoch}_stop'] = df_sessions[f'LSD{epoch}_start'] + length
-    return df_sessions
+        label = str(int(epoch))
+        # Compute the start values for this epoch
+        start_values = df_sessions[t0] + epoch
+        stop_values = start_values + length
+        new_cols[f'{prefix}_{label}_start'] = start_values
+        new_cols[f'{prefix}_{label}_stop'] = stop_values
+    # Create a DataFrame from new_cols and concatenate to original
+    new_cols_df = pd.DataFrame(new_cols, index=df_sessions.index)
+    df_sessions = pd.concat([df_sessions, new_cols_df], axis=1)
+    if return_cols:
+        col_names = [col.rsplit('_', 1)[0] for col in new_cols if col.endswith('_start')]
+        return df_sessions, col_names
+    else:
+        return df_sessions
 
 class PsySpikeSortingLoader(SpikeSortingLoader):
 
