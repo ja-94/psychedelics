@@ -58,7 +58,7 @@ def qc_grid(df, qc_columns=None, qcval2num=None, ax=None, xticklabels=None, cmap
     if ax is None:
         fig, ax = plt.subplots()
     qcmat = df_qc.values.T.astype(float)
-    ax.matshow(qcmat, cmap=QCCMAP, vmin=0, vmax=1)
+    ax.matshow(qcmat, cmap=cmap, vmin=0, vmax=1)
     ax.set_xticks(np.arange(len(df_qc)))
     if type(xticklabels) == str:
         ax.set_xticklabels(df[xticklabels])
@@ -75,7 +75,7 @@ def qc_grid(df, qc_columns=None, qcval2num=None, ax=None, xticklabels=None, cmap
         ax.axhline(ytick - 0.5, color='white')
     if legend:
         for key, val in qcval2num.items():
-            ax.scatter(-1, -1, color=QCCMAP(val), label=key)
+            ax.scatter(-1, -1, color=cmap(val), label=key)
         ax.set_xlim(left=-0.5)
         ax.set_ylim(top=-0.5)
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
