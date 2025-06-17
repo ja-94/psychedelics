@@ -51,7 +51,7 @@ if args.fetch_uinfo or args.fetch_spikes:
             raise RuntimeError("Must run 'fetch_data.py --fetch_insertions' before trying to fetch units.")
     print("Fetching unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
     spike_file = paths['spikes'] if args.fetch_spikes else ''
-    df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file)
+    df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file, histology='traced')
 
 # BWM Insertions
 df_insertions_bwm = None
