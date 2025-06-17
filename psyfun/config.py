@@ -19,23 +19,25 @@ paths = {
 }
 
 qc_datasets = {
-    'task00': [
+    'task': [
         'raw_task_data_00/_iblrig_taskSettings.raw.json',
         'alf/task_00/_ibl_passivePeriods.intervalsTable.csv',
-        ],
-    'task01': [
         'raw_task_data_01/_iblrig_taskSettings.raw.json',
         'alf/task_01/_ibl_passivePeriods.intervalsTable.csv',
+        'raw_task_data_02/_iblrig_taskSettings.raw.json',
+        'alf/task_02/_ibl_passivePeriods.intervalsTable.csv',
         ],
-    'probe00': [
+    'ephys': [
         'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec0.sync.npy',
+        'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec00.sync.npy',
         'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec0.ap.cbin',
-        'alf/probe00/pykilosort/spikes.times.npy'
-        ],
-    'probe01': [
+        'raw_ephys_data/probe00/_spikeglx_ephysData_g0_t0.imec00.ap.cbin',
+        'alf/probe00/pykilosort/spikes.times.npy',
         'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec1.sync.npy',
+        'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec01.sync.npy',
         'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec1.ap.cbin',
-        'alf/probe01/pykilosort/spikes.times.npy'
+        'raw_ephys_data/probe01/_spikeglx_ephysData_g0_t0.imec01.ap.cbin',
+        'alf/probe01/pykilosort/spikes.times.npy',
         ],
     'video': [
         'raw_video_data/_iblrig_bodyCamera.raw.mp4',

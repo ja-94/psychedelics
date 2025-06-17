@@ -113,19 +113,10 @@ def _check_datasets(series, one=None):
         # TODO: handle spontaneous protocol in 2025 recordings!
         if 'spontaneous' in protocol: 
             continue
-        task_datasets = [
-            f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json',
-            f'alf/task_{n:02d}/_ibl_passivePeriods.intervalsTable.csv',
-            ]
-        for dataset in task_datasets:
+        for dataset in qc_datasets['task']:
             series[dataset] = dataset in datasets
     for n in range(series['n_probes']):
-        ephys_datasets = [
-            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.sync.npy',
-            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.ap.cbin',
-            f'alf/probe{n:02d}/pykilosort/spikes.times.npy'
-            ]
-        for dataset in ephys_datasets:
+        for dataset in qc_datasets['ephys']:
             series[dataset] = dataset in datasets  
     # Check if each important dataset is present
     for dataset in qc_datasets['video']:
