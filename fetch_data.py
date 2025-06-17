@@ -46,7 +46,7 @@ if args.fetch_uinfo or args.fetch_spikes:
     if df_insertions is None:
         print(f"Loading insertions from {paths['insertions']}")
         try:
-            df_insertions = pd.read_csv(paths['insertions'])
+            df_insertions = pd.read_parquet(paths['insertions'])
         except FileNotFoundError:
             raise RuntimeError("Must run 'fetch_data.py --fetch_insertions' before trying to fetch units.")
     print("Fetching unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
