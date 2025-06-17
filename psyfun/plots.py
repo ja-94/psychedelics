@@ -2,22 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import colors
 
-# Map QC flags to numbers for plotting
-QCVAL2NUM = {  
-    np.nan: 0.,
-    'NOT SET': 0.01,
-    'NOT_SET': 0.01,
-    'PASS': 1.,
-    'WARNING': 0.66,
-    'CRITICAL': 0.33,
-    'FAIL': 0.1
-}
-# Create colormap for QC grid plots
-QCCMAP = colors.LinearSegmentedColormap.from_list(
-    'qc_cmap',
-    [(0., 'white'), (0.01, 'gray'), (0.1, 'palevioletred'), (0.33, 'violet'), (0.66, 'orange'), (1., 'limegreen')],
-    N=256
-)
+from psyfun.config import *
 
 def qc_grid(df, qc_columns=None, qcval2num=None, ax=None, xticklabels=None,
            legend=True):

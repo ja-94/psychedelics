@@ -67,9 +67,27 @@ bwm_pretask_length = 5 * 60  # seconds
 epoch_length = 5 * 60  # seconds
 postLSD_epochs = np.arange(0, 30, 10) * 60  # seconds
 
+LSDCOLOR = 'mediumorchid'
+CONTROLCOLOR = 'mediumseagreen'
 cmaps = {
-    'n_units': mpl.colormaps['RdPu'],
-    'LSD': mpl.colors.LinearSegmentedColormap.from_list("LSDcmap", ['gray', 'darkorchid'])
+    'n_units': mpl.colormaps['Reds'],
+    'LSD': mpl.colors.LinearSegmentedColormap.from_list("LSD_cmap", ['gray', LSDCOLOR]),
+    'control': mpl.colors.LinearSegmentedColormap.from_list("control_cmap", ['gray', CONTROLCOLOR]),
+    'qc': mpl.colors.LinearSegmentedColormap.from_list(
+        'qc_cmap',
+        [(0., 'white'), (0.01, 'gray'), (0.1, 'palevioletred'), (0.33, 'violet'), (0.66, 'orange'), (1., 'limegreen')],
+    )
+}
+
+# Map QC flags to numbers for plotting
+QCVAL2NUM = {  
+    np.nan: 0.,
+    'NOT SET': 0.01,
+    'NOT_SET': 0.01,
+    'PASS': 1.,
+    'WARNING': 0.66,
+    'CRITICAL': 0.33,
+    'FAIL': 0.1
 }
 
 ap_coords = [2, 1, 0, -1, -2, -3, -4]  # mm
