@@ -36,3 +36,29 @@ def power_law_slope(eig, rank=100):
 def ngsc(a):
     return stats.entropy(a) / np.log2(len(a))
 
+def angle(v1, v2):
+    """
+    Compute the angle between two vectors v1 and v2.
+    
+    Parameters
+    ----------
+    v1, v2 : array_like
+        The two vectors (e.g. PC1 directions) between which to compute the angle.
+    
+    Returns
+    -------
+    angle_rad : float
+        Angle in radians.
+    angle_deg : float
+        Angle in degrees.
+    """
+    # Compute dot product and norms.
+    dot = np.dot(v1, v2)
+    norm_v1 = np.linalg.norm(v1)
+    norm_v2 = np.linalg.norm(v2)
+    
+    # Avoid numerical issues: clip the cosine value to the valid range [-1, 1]
+    cos_theta = np.clip(dot / (norm_v1 * norm_v2), -1.0, 1.0)
+    angle_rad = np.arccos(cos_theta)
+    # angle_deg = np.degrees(angle_rad)
+    return angle_rad
