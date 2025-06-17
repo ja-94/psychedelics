@@ -176,6 +176,9 @@ def _unpack_session_info(series):
 
 
 def _unpack_json(series):
+    if not series['json']:
+        print(f"WARNING: ephys qc json empty for pid {series['pid']}")
+        return series
     series['ephys_qc'] = series['json']['qc']
     jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
     for key in jsonkeys:
