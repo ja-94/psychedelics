@@ -5,6 +5,13 @@ from matplotlib import colors
 from psyfun.config import *
 
 def qc_grid(df, qc_columns=None, qcval2num=None, ax=None, xticklabels=None,
+LABELFONTSIZE = 8
+plt.rcParams['figure.dpi'] = 180
+plt.rcParams['axes.labelsize'] = LABELFONTSIZE
+plt.rcParams['xtick.labelsize'] = LABELFONTSIZE 
+plt.rcParams['ytick.labelsize'] = LABELFONTSIZE 
+plt.rcParams['legend.fontsize'] = LABELFONTSIZE 
+plt.rcParams['axes.titlesize'] = LABELFONTSIZE 
            legend=True):
     if qcval2num is None:
         qcval2num = QCVAL2NUM
