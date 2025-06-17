@@ -35,3 +35,4 @@ def power_law_slope(eig, rank=100):
 
 def ngsc(a):
     return stats.entropy(a) / np.log2(len(a))
+
