@@ -69,7 +69,7 @@ def _label_controls (session, controls=df_controls):
         return True
     elif len(control_session) == 0:
         return False
-    elif len(control_sesison) > 1:
+    elif len(control_session) > 1:
         raise ValueError("More than one entry in df_controls!")
 
 def _unpack_session_dict(series, one=None):
