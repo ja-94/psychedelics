@@ -66,13 +66,13 @@ if args.fetch_bwm_insertions:
     df_insertions_bwm = io.fetch_BWM_insertions(one, df_controls)
 else:
     print(f"Loading BWM insertions from {paths['BWM_insertions']}")
-    df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+    df_insertions_bwm = pd.read_parquet(paths['BWM_insertions'])
 
 # BWM Units (cluster info) and Spikes (optional)
 if args.fetch_bwm_uinfo or args.fetch_bwm_spikes:
     if df_insertions_bwm is None:
         try:
-            df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+            df_insertions_bwm = pd.read_parquet(paths['BWM_insertions'])
         except FileNotFoundError:
             raise RuntimeError("Run 'fetch_data.py --fetch_bwm_insertions' before trying to fetch units.")
     print("Fetching BWM unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
