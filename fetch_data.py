@@ -32,7 +32,7 @@ one = ONE()
 # Session metadata
 if args.fetch_sessions:
     print("Fetching sessions...")
-    df_sessions = io.fetch_sessions(one, save=True)
+    df_sessions = io.fetch_sessions(one, qc=True, save=True)
 
 # Probe insertion metadata
 df_insertions = None
