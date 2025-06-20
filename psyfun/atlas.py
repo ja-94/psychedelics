@@ -5,6 +5,69 @@ from iblatlas.atlas import BrainRegions
 import iblatlas.plots as anatomyplots
 regions = BrainRegions()
 
+
+def coarse_regions(acronyms):
+    regions = acronyms.copy()
+    regions[
+        np.isin(acronyms, ['ACAd1', 'ACAd2/3', 'ACAd5', 'ACAd6a', 'ACAv1', 'ACAv2/3', 'ACAv5', 'ACAv6a','ACAv6b', 'ILA5', 'ILA6a',
+                          'PL5', 'PL6a', 'PL6b', 'RSPagl1', 'RSPagl2/3', 'RSPagl5', 'RSPagl6a', 'RSPagl6b'])
+    ] = 'Prefrontal Ctx'
+    regions[
+        np.isin(acronyms, ['AMd', 'CL', 'CM', 'IAD', 'IAM', 'IMD', 'LD', 'LP', 'MD', 'PCN', 'PO', 'PR', 'PVT', 'PVi', 'RE', 'RH', 'RT', 'SMT',
+                          'TH', 'VAL', 'VM', 'VPL', 'VPM', 'VPMpc', 'Xi'])
+    ] = 'Thalamus' 
+    regions[
+        np.isin(acronyms, ['AUDd5', 'AUDp5', 'AUDp6b', 'AUDv4', 'AUDv5', 'AUDv6a', 'AUDv6b'])
+    ] = 'Auditory Ctx'
+    regions[
+        np.isin(acronyms, ['BLAa', 'BLAp', 'BMAa', 'CEAc', 'CEAl', 'CEAm', 'COApm', 'IA', 'LA', 'MEA', 'PA', 'PAA'])
+    ] = 'Amygdala' 
+    regions[
+        np.isin(acronyms, ['CA1', 'CA2', 'CA3', 'DG-mo', 'DG-po', 'DG-sg', 'HPF', 'IG'])
+    ] = 'Hippocampus'
+    regions[
+        np.isin(acronyms, ['ACB', 'CP', 'BST', 'GPe', 'GPi', 'PAL', 'STR'])
+    ] = 'Striatum'
+    regions[
+        np.isin(acronyms, ['DMH', 'HY', 'LPO', 'MEPO', 'PVHd', 'ZI'])
+    ] = 'Hypothal'
+    regions[
+        np.isin(acronyms, ['ECT5', 'ECT6a', 'ECT6b', 'ENTl3', 'ENTl5', 'ENTl6a', 'TEa1', 'TEa2/3', 'TEa4', 'TEa5', 'TEa6a'])
+    ] = 'Entorhinal Ctx'
+    regions[
+        np.isin(acronyms, ['LH'])
+    ] = 'Habenula'
+    regions[
+        np.isin(acronyms, ['LSc', 'LSr', 'LSv', 'MS', 'SF', 'SH'])
+    ] = 'Septum'
+    regions[
+        np.isin(acronyms, ['MOp1', 'MOp2/3', 'MOp6a', 'MOp6b'])
+    ] = 'Motor Ctx'
+    regions[
+        np.isin(acronyms, ['MOs1', 'MOs2/3', 'MOs5', 'MOs6a', 'MOs6b'])
+    ] = 'Supp. Motor Ctx'
+    regions[
+        np.isin(acronyms, ['NDB', 'SI'])
+    ] = 'Basal Forebrain'
+    regions[
+        np.isin(acronyms, ['DP', 'OLF', 'PIR', 'TTd'])
+    ] = 'Olfactory Ctx'
+    regions[
+        np.isin(acronyms, ['SSp-bfd2/3', 'SSp-bfd4', 'SSp-bfd5', 'SSp-bfd6a', 'SSp-bfd6b', 'SSp-ll6a', 'SSp-ll6b', 'SSs5', 'SSs6a', 'SSs6b'])
+    ] = 'Somatosens. Ctx'
+    regions[
+        np.isin(acronyms, ['VISa1', 'VISa2/3', 'VISp4', 'VISp5', 'VISp6a', 'VISp6b', 'VISrl4', 'VISrl5', 'VISrl6a'])
+    ] = 'Visual Ctx'
+    regions[
+        np.isin(acronyms, ['SEZ', 'VL', 'alv', 'amc', 'ar', 'ccb', 'ccg', 'ccs', 'chpl', 'cing', 'ec', 'ee', 'em', 'fa', 'fi', 'fiber tracts',
+                           'fp', 'fr', 'int', 'opt', 'or', 'root', 'scwm', 'sm', 'st', 'void'])
+    ] = 'Fiber tract'
+    regions[
+        np.isin(acronyms, ['CTXsp', 'EDp','EPd', 'EPv'])
+    ] = 'Claustrum'
+    return regions
+    
+
 def remap_names(acronyms, source='Allen', dest='Beryl'):
     br = BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])

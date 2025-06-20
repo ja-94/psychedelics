@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -113,19 +114,10 @@ def _check_datasets(series, one=None):
         # TODO: handle spontaneous protocol in 2025 recordings!
         if 'spontaneous' in protocol: 
             continue
-        task_datasets = [
-            f'raw_task_data_{n:02d}/_iblrig_taskSettings.raw.json',
-            f'alf/task_{n:02d}/_ibl_passivePeriods.intervalsTable.csv',
-            ]
-        for dataset in task_datasets:
+        for dataset in qc_datasets['task']:
             series[dataset] = dataset in datasets
     for n in range(series['n_probes']):
-        ephys_datasets = [
-            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.sync.npy',
-            f'raw_ephys_data/probe{n:02d}/_spikeglx_ephysData_g0_t0.imec{n:02d}.ap.cbin',
-            f'alf/probe{n:02d}/pykilosort/spikes.times.npy'
-            ]
-        for dataset in ephys_datasets:
+        for dataset in qc_datasets['ephys']:
             series[dataset] = dataset in datasets  
     # Check if each important dataset is present
     for dataset in qc_datasets['video']:
@@ -176,31 +168,32 @@ def _unpack_session_info(series):
 
 
 def _unpack_json(series):
-    # return the series if unsubscriptable
-    if series['json'] is not None:
-        series['ephys_qc'] = series['json']['qc']
-        jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
-        for key in jsonkeys:
-            try:
-                series[key] = series['json'][key]
-            except KeyError:
-                series[key] = np.nan
-        if 'tracing_exists' not in series['json']['extended_qc']:
-            series['tracing_qc'] = 'NOT SET'
-            series['alignment_qc'] = 'NOT SET'
-        elif series['json']['extended_qc']['tracing_exists']:
-            if 'tracing' in series['json']['extended_qc']:
-                series['tracing_qc'] = series['json']['extended_qc']['tracing']
-            else:
-                series['tracing_qc'] = 'NOT SET'
-            try:
-                alignment_resolved_by = series['json']['extended_qc']['alignment_resolved_by']
-                series['alignment_qc'] = series['json']['extended_qc'][alignment_resolved_by]
-            except KeyError:
-                series['alignment_qc'] = 'NOT SET'
-        elif not series['json']['extended_qc']['tracing_exists']:
+    if not series['json']:
+        print(f"WARNING: ephys qc json empty for pid {series['pid']}")
+        return series
+    series['ephys_qc'] = series['json']['qc']
+    jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
+    for key in jsonkeys:
+        try:
+            series[key] = series['json'][key]
+        except KeyError:
+            series[key] = np.nan
+    if 'tracing_exists' not in series['json']['extended_qc']:
+        series['tracing_qc'] = 'NOT SET'
+        series['alignment_qc'] = 'NOT SET'
+    elif series['json']['extended_qc']['tracing_exists']:
+        if 'tracing' in series['json']['extended_qc']:
             series['tracing_qc'] = series['json']['extended_qc']['tracing']
+        else:
+            series['tracing_qc'] = 'NOT SET'
+        try:
+            alignment_resolved_by = series['json']['extended_qc']['alignment_resolved_by']
+            series['alignment_qc'] = series['json']['extended_qc'][alignment_resolved_by]
+        except KeyError:
             series['alignment_qc'] = 'NOT SET'
+    else:
+        series['tracing_qc'] = series['json']['extended_qc'].get('tracing', 'NOT SET')
+        series['alignment_qc'] = 'NOT SET'
     return series
 
 
@@ -313,11 +306,33 @@ def _fetch_LSD_admin_time(series, df_metadata=None):
     return series
 
 
-def add_postLSD_epochs(df_sessions, epochs=postLSD_epochs, length=epoch_length):
+# def sliding_epochs(df_sessions, t0='LSD_admin', epochs=postLSD_epochs, length=epoch_length):
+#     prefix = t0.rstrip('_start').rstrip('_stop')
+#     for epoch in epochs:
+#         label = str(int(epoch))
+#         df_sessions[f'{prefix}_{label}_start'] = df_sessions.apply(lambda x: x[t0] + epoch, axis='columns').copy()
+#         df_sessions[f'{prefix}_{label}_stop'] = df_sessions[f'{prefix}_{label}_start'] + length
+#     return df_sessions
+
+def sliding_epochs(df_sessions, t0='LSD_admin', epochs=postLSD_epochs, length=epoch_length, return_cols=False):
+    prefix = re.sub(r'(_start|_stop)$', '', t0)
+    # Prepare a dict to hold all new columns
+    new_cols = {}
     for epoch in epochs:
-        df_sessions[f'LSD{epoch}_start'] = df_sessions.apply(lambda x: x['LSD_admin'] + epoch, axis='columns')
-        df_sessions[f'LSD{epoch}_stop'] = df_sessions[f'LSD{epoch}_start'] + length
-    return df_sessions
+        label = str(int(epoch))
+        # Compute the start values for this epoch
+        start_values = df_sessions[t0] + epoch
+        stop_values = start_values + length
+        new_cols[f'{prefix}_{label}_start'] = start_values
+        new_cols[f'{prefix}_{label}_stop'] = stop_values
+    # Create a DataFrame from new_cols and concatenate to original
+    new_cols_df = pd.DataFrame(new_cols, index=df_sessions.index)
+    df_sessions = pd.concat([df_sessions, new_cols_df], axis=1)
+    if return_cols:
+        col_names = [col.rsplit('_', 1)[0] for col in new_cols if col.endswith('_start')]
+        return df_sessions, col_names
+    else:
+        return df_sessions
 
 class PsySpikeSortingLoader(SpikeSortingLoader):
 
@@ -345,12 +360,12 @@ class PsySpikeSortingLoader(SpikeSortingLoader):
         return clusters
 
 
-def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atlas):
+def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atlas, histology=None):
     probe_dfs = []
     for idx, probe in tqdm(df_insertions.iterrows(), total=len(df_insertions)):
         # Load in spike times and cluster info
         pid = probe['pid']
-        loader = PsySpikeSortingLoader(pid=pid, one=one, atlas=atlas)
+        loader = PsySpikeSortingLoader(pid=pid, one=one, atlas=atlas, histology=histology)
         try:
             clusters = loader.load_spike_sorting_object('clusters')
             channels = loader.load_channels()

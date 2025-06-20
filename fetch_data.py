@@ -32,7 +32,7 @@ one = ONE()
 # Session metadata
 if args.fetch_sessions:
     print("Fetching sessions...")
-    df_sessions = io.fetch_sessions(one, save=True)
+    df_sessions = io.fetch_sessions(one, qc=True, save=True)
 
 # Probe insertion metadata
 df_insertions = None
@@ -46,12 +46,12 @@ if args.fetch_uinfo or args.fetch_spikes:
     if df_insertions is None:
         print(f"Loading insertions from {paths['insertions']}")
         try:
-            df_insertions = pd.read_csv(paths['insertions'])
+            df_insertions = pd.read_parquet(paths['insertions'])
         except FileNotFoundError:
             raise RuntimeError("Must run 'fetch_data.py --fetch_insertions' before trying to fetch units.")
     print("Fetching unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
     spike_file = paths['spikes'] if args.fetch_spikes else ''
-    df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file)
+    df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file, histology='traced')
 
 # BWM Insertions
 df_insertions_bwm = None
@@ -66,13 +66,13 @@ if args.fetch_bwm_insertions:
     df_insertions_bwm = io.fetch_BWM_insertions(one, df_controls)
 else:
     print(f"Loading BWM insertions from {paths['BWM_insertions']}")
-    df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+    df_insertions_bwm = pd.read_parquet(paths['BWM_insertions'])
 
 # BWM Units (cluster info) and Spikes (optional)
 if args.fetch_bwm_uinfo or args.fetch_bwm_spikes:
     if df_insertions_bwm is None:
         try:
-            df_insertions_bwm = pd.read_csv(paths['BWM_insertions'])
+            df_insertions_bwm = pd.read_parquet(paths['BWM_insertions'])
         except FileNotFoundError:
             raise RuntimeError("Run 'fetch_data.py --fetch_bwm_insertions' before trying to fetch units.")
     print("Fetching BWM unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
