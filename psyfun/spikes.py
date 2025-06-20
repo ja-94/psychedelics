@@ -23,16 +23,20 @@ def modulation_index(ts, t0s, t1s):
     rates = np.array([np.sum(((ts >= t0) & (ts <= t1)), axis=-1) for t0, t1 in zip(t0s, t1s)])
     return np.squeeze(np.diff(rates, axis=0) / np.sum(rates, axis=0))
 
-def _get_modulation_index(series, epochs=None, n_shf=100):
-    assert epochs is not None
+def _get_modulation_index(series, epoch_pairs=None, n_shf=100):
+    assert epoch_pairs is not None
     ts = series['spike_times']
-    t0s = [series[f'{epoch}_start'] for epoch in epochs]
-    t1s = [series[f'{epoch}_stop'] for epoch in epochs]
-    # Compute the modulation index
-    mi = modulation_index(ts, t0s, t1s)
-    # Vectorized permutation test
     rng = np.random.default_rng(42)
     ts_shf = np.array([shuffle_spikes(ts, rng) for i in range(n_shf)])
-    mi_shf = modulation_index(ts_shf, t0s, t1s)
-    p = (mi > mi_shf).mean()
-    return mi, p
+    MIs = {}
+    for label, epochs in epoch_pairs.items():
+        t0s = [series[f'{epoch}_start'] for epoch in epochs]
+        t1s = [series[f'{epoch}_stop'] for epoch in epochs]
+        # Compute the modulation index
+        mi = modulation_index(ts, t0s, t1s)
+        # Permutation test
+        mi_shf = modulation_index(ts_shf, t0s, t1s)
+        p = (mi > mi_shf).mean()
+        MIs[f'{label}_MI'] = mi
+        MIs[f'{label}_p'] = p
+    return MIs
