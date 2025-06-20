@@ -157,7 +157,7 @@ def fetch_insertions(one, save=True):
     # Pull out some basic fields from the session info dict
     df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns')
     # Unpack detailed QC info from the json
-    df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns')
+    #df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns')
     # Add any histology QC info present
     df_insertions = df_insertions.progress_apply(_check_histology, one=one, axis='columns')
     # Label and sort by session number for each subject
@@ -176,29 +176,31 @@ def _unpack_session_info(series):
 
 
 def _unpack_json(series):
-    series['ephys_qc'] = series['json']['qc']
-    jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
-    for key in jsonkeys:
-        try:
-            series[key] = series['json'][key]
-        except KeyError:
-            series[key] = np.nan
-    if 'tracing_exists' not in series['json']['extended_qc']:
-        series['tracing_qc'] = 'NOT SET'
-        series['alignment_qc'] = 'NOT SET'
-    elif series['json']['extended_qc']['tracing_exists']:
-        if 'tracing' in series['json']['extended_qc']:
-            series['tracing_qc'] = series['json']['extended_qc']['tracing']
-        else:
+    # return the series if unsubscriptable
+    if series['json'] is not None:
+        series['ephys_qc'] = series['json']['qc']
+        jsonkeys = ['n_units', 'n_units_qc_pass', 'firing_rate_median', 'firing_rate_max']
+        for key in jsonkeys:
+            try:
+                series[key] = series['json'][key]
+            except KeyError:
+                series[key] = np.nan
+        if 'tracing_exists' not in series['json']['extended_qc']:
             series['tracing_qc'] = 'NOT SET'
-        try:
-            alignment_resolved_by = series['json']['extended_qc']['alignment_resolved_by']
-            series['alignment_qc'] = series['json']['extended_qc'][alignment_resolved_by]
-        except KeyError:
             series['alignment_qc'] = 'NOT SET'
-    elif not series['json']['extended_qc']['tracing_exists']:
-        series['tracing_qc'] = series['json']['extended_qc']['tracing']
-        series['alignment_qc'] = 'NOT SET'
+        elif series['json']['extended_qc']['tracing_exists']:
+            if 'tracing' in series['json']['extended_qc']:
+                series['tracing_qc'] = series['json']['extended_qc']['tracing']
+            else:
+                series['tracing_qc'] = 'NOT SET'
+            try:
+                alignment_resolved_by = series['json']['extended_qc']['alignment_resolved_by']
+                series['alignment_qc'] = series['json']['extended_qc'][alignment_resolved_by]
+            except KeyError:
+                series['alignment_qc'] = 'NOT SET'
+        elif not series['json']['extended_qc']['tracing_exists']:
+            series['tracing_qc'] = series['json']['extended_qc']['tracing']
+            series['alignment_qc'] = 'NOT SET'
     return series
 
 
