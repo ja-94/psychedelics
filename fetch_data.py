@@ -53,6 +53,7 @@ if args.fetch_uinfo or args.fetch_spikes:
     spike_file = paths['spikes'] if args.fetch_spikes else ''
     df_units = io.fetch_unit_info(one, df_insertions, uinfo_file=paths['units'], spike_file=spike_file, histology='traced')
 
+"""
 # BWM Insertions
 df_insertions_bwm = None
 if args.fetch_bwm_insertions:
@@ -78,3 +79,4 @@ if args.fetch_bwm_uinfo or args.fetch_bwm_spikes:
     print("Fetching BWM unit info and spike times..." if args.fetch_spikes else "Fetching unit info...")
     spike_file = paths['BWM_spikes'] if args.fetch_bwm_spikes else ''
     df_uinfo = io.fetch_unit_info(one, df_insertions_bwm, uinfo_file=paths['BWM_units'], spike_file=spike_file)
+"""
