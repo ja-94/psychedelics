@@ -5,8 +5,6 @@ Copyright © 2023 Howard Hughes Medical Institute, Authored by Carsen Stringer a
 """
 Optimization possibilities:
     - Merge subsampled_means() with svd_computations. There is a double computation of binned frame arrays.
-    -
-
 """
 import cv2
 import h5py
@@ -106,6 +104,7 @@ def get_frame(cframe, nframes, cumframes, containers):
     return img
 
 
+# [NOT USED]
 def get_batch_frames(
     frame_indices, total_frames, cumframes, containers, video_idx, grayscale=True
 ):
@@ -135,7 +134,7 @@ def get_batch_frames(
             print("Error reading frame")
     return np.array(imgs)
 
-
+#[NOT USED IN MY IMPLEMENTATION]
 def load_images_from_video(video_path, selected_frame_ind):
     """
     Load images from a video file. Helpful to debug.
@@ -153,7 +152,7 @@ def load_images_from_video(video_path, selected_frame_ind):
     frames = np.array(frames)
     return frames
 
-
+#[NOT USED IN MY IMPLEMENTATION]
 def resample_timestamps(init_timestamps, target_timestamps):
     """
     Resample timestamps to a new time base.
@@ -281,7 +280,7 @@ def get_frame_details(filenames):
     cumframes = np.array(cumframes).astype(int)
     return cumframes, Ly, Lx, containers
 
-
+#[NOT USED IN MY IMPLEMENTATION]
 def get_cap_features(cap):
     fps = cap.get(cv2.CAP_PROP_FPS)
     nframes = cap.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -589,9 +588,11 @@ def subsampled_mean(
         Array of shape (Lyb * Lxb,). Average absolute motion energy per binned pixel groups.
 
     """
-    # grab up to 2000 frames to average over for mean (useful to standardize motion energy)
-    # containers is a list of videos loaded with opencv
-    # cumframes are the cumulative frames across videos (useless!)
+    # grab up to 1000 frames in the form of non-sequentially extracted 100-frame chunks
+    # to average over for mean (useful to standardize motion energy)
+
+    # containers: list of videos loaded with opencv
+    # cumframes: cumulative frames across videos (vestigial!)
     # Ly, Lx are the sizes of the videos (unique)
     # sbin is the size of spatial binning
 
@@ -612,22 +613,25 @@ def subsampled_mean(
     # frame range
     print("start: ", start_frame, " end: ", end_frame)
 
+# Get 1000 frames such that each 100 frame chunk 
+# comes "equally" distant parts of the video
+
+    # number of total frames
     nf = min(1000, end_frame - start_frame) # load up to 1000 frames or frame dif if smol
-    # load in chunks of up to 100 frames (for speed)
-    nt0 = min(100, np.diff(cumframes).min(), nf)
+
+    # number of frames in each loaded chunk (nsegs chunks)
+    nt0 = min(100, np.diff(cumframes).min(), nf) 
+
     #segments
     nsegs = int(np.floor(nf / nt0))
     
-    print("segments ", nsegs)
-    # IMPORTANT FUNCTION:
-    #   Segments from start_frame to end_frame - 100 into nsegs
+    #  Segment FRAMESTAMPS from start_frame to end_frame - 100
     tf = np.floor(np.linspace(start_frame, end_frame - nt0, nsegs)).astype(int)
-
 
     # binned Ly and Lx and their relative inds in concatenated movies
     Lyb, Lxb, ir = binned_inds(Ly, Lx, sbin)
 
-    # initializing
+    # initializing subchunk container (100 frames, Ly, Lx)
     imall = imall_init(nt0, Ly, Lx)
 
     avgframe = np.zeros(((Lyb * Lxb).sum(),), np.float32)
@@ -635,14 +639,14 @@ def subsampled_mean(
     ns = 0
 
     s = StringIO()
+
     for n in tqdm(range(nsegs), file=s):
 
+        # initial timestamp (defining chunk window)
         t = tf[n]
         # imall: frame array; containers: video; np.arange() spans desired frames; cumframes
         get_frames(imall, containers, np.arange(t, t + nt0), cumframes)
         
-        # at this point, imall has raw frames
-
         for n, im in enumerate(imall):
 
             #  imbin: (nframes, nbins (like flattened pixels))
@@ -683,7 +687,7 @@ def compute_SVD(
     avgmotion,
     motSVD=True,
     movSVD=False,
-    ncomps=300,
+    ncomps=500,
     sbin=4,
     rois=None,
     fullSVD=True,
@@ -694,8 +698,7 @@ def compute_SVD(
     fps = 60
 ):
     """
-    Compute the SVD over frames in chunks, combine the chunks and take a mega-SVD
-    Number of components kept from SVD is ncomps
+    Compute the SVD over frames in chunks, combine the chunks, and take a mega-SVD.
 
      Parameters
     ----------
@@ -939,7 +942,17 @@ def compute_SVD(
 
     return U_mot, U_mov, S_mot, S_mov
 
+"""
+WARNING: GOTTA RECHECK THIS ONE.
+Different things from FaceMap:
+- No pupil, whisking, running specialize motifs. It could be useful to reimplement (look at FaceMap.process source code)
+- No multivideo support. I've been trying to eliminate the grid implementation (harmless if single video,
+ but makes code complicated)
+ - No M array
 
+ Improvements:
+ - Doing some cleaning with V_mov and M
+"""
 def process_ROIs(
     containers,
     cumframes,
@@ -959,7 +972,7 @@ def process_ROIs(
     MainWindow=None,
     start_sec = None,
     end_sec = None,
-    fps = 60
+    fps = 60,
 ):
     # project U onto each frame in the video and compute the motion energy for motSVD
     # also compute pupil on single frames on non binned data
@@ -981,19 +994,18 @@ def process_ROIs(
         end_frame = nframes
     total_frames = end_frame - start_frame
     # -----------------------
-
+    print("start frame:", start_frame, "to ", "end frame: ", end_frame)
     motind = []
     ivid = []
-    nroi = 0  # number of motion ROIs
 
     if fullSVD:
         if motSVD:
             ncomps_mot = U_mot[0].shape[-1]
-        if movSVD:
-            ncomps_mov = U_mov[0].shape[-1]
-        V_mot = [np.zeros((total_frames, ncomps_mot), np.float32)] if motSVD else []
-        V_mov = [np.zeros((total_frames, ncomps_mov), np.float32)] if movSVD else []
-        M = [np.zeros((total_frames), np.float32)]
+
+        
+        # n_samples x n_features
+        V_mot = np.zeros((total_frames, ncomps_mot), np.float32) if motSVD else None
+
     else:
         V_mot = [np.zeros((0, 1), np.float32)] if motSVD else []
         V_mov = [np.zeros((0, 1), np.float32)] if movSVD else []
@@ -1014,7 +1026,7 @@ def process_ROIs(
     ivid = np.array(ivid).astype(np.int32)
     motind = np.array(motind).astype(np.int32)
 
-    # compute in chunks of 500
+    # compute in chunks of 1000
     nt0 = 500
     nsegs = int(np.ceil(total_frames / nt0))
     # binned Ly and Lx and their relative inds in concatenated movies
@@ -1023,28 +1035,24 @@ def process_ROIs(
     for ii in range(len(Ly)):
         imend.append([])
 
-    t = start_frame
-    nt1 = 0
     s = StringIO()
+    
+    t0 = start_frame
+    motion_frame_counter = 0
+
     for n in tqdm(range(nsegs), file=s):
         # setting the interval
-        t0 = t # interval start
-
         t1 = min(t0+nt0, end_frame) # interval end
-
+        
         img = imall_init(t1-t0, Ly, Lx) # frame selection
         get_frames(img, containers, np.arange(t0, t1), cumframes)
-        nt1 = img[0].shape[0]
-
-
-        out_offset = t0 - start_frame
 
 
         # bin and get motion
         if fullSVD:
             if n > 0:
+                # n_frames x (total bin pixels)
                 imall_mot = np.zeros((img[0].shape[0], (Lyb * Lxb).sum()), np.float32)
-                imall_mov = np.zeros((img[0].shape[0], (Lyb * Lxb).sum()), np.float32)
             else:
                 imall_mot = np.zeros(
                     (img[0].shape[0] - 1, (Lyb * Lxb).sum()), np.float32
@@ -1074,10 +1082,12 @@ def process_ROIs(
                         imbin_mov = imbin[1:, :]
                     if fullSVD:
                         if motSVD:
-                            M[0][out_offset : out_offset + imbin_mot.shape[0]] += imbin_mot.sum(axis=-1)
+                            M[0][motion_frame_counter : motion_frame_counter + imbin_mot.shape[0]] += imbin_mot.sum(axis=-1)
                             imall_mot[:, ir[ii]] = imbin_mot - avgmotion[ii].flatten()
                         if movSVD:
                             imall_mov[:, ir[ii]] = imbin_mov - avgframe[ii].flatten()
+                """ 
+                ROI Implementation that has to be fixed
                 if nroi > 0 and wmot.size > 0:
                     wmot = np.array(wmot).astype(int)
                     if motSVD:
@@ -1094,42 +1104,42 @@ def process_ROIs(
                         xmax = rois[wroi[i]]["xrange_bin"][-1] + 1
                         if motSVD:
                             lilbin = imbin_mot[:, ymin:ymax, xmin:xmax]
-                            M[wmot[i] + 1][t : t + lilbin.shape[0]] = lilbin.sum(
+                            M[wmot[i] + 1][motion_frame_counter : motion_frame_counter + lilbin.shape[0]] = lilbin.sum(
                                 axis=(-2, -1)
                             )
                             lilbin -= avgmotion[ii][ymin:ymax, xmin:xmax]
                             lilbin = np.reshape(lilbin, (lilbin.shape[0], -1))
-                            vproj = lilbin @ U_mot[wmot[i] + 1]
-                            if n == 0:
-                                vproj = np.concatenate(
-                                    (vproj[0, :][np.newaxis, :], vproj), axis=0
-                                )
-                            V_mot[wmot[i] + 1][out_offset : out_offset + vproj.shape[0], :] = vproj
+                            vproj = lilbin @ U_mot[wmot[i]]
+                            V_mot[wmot[i] + 1][motion_frame_counter : motion_frame_counter + vproj.shape[0], :] = vproj
+
                         if movSVD:
                             lilbin = imbin_mov[:, ymin:ymax, xmin:xmax]
                             lilbin -= avgframe[ii][ymin:ymax, xmin:xmax]
                             lilbin = np.reshape(lilbin, (lilbin.shape[0], -1))
-                            vproj = lilbin @ U_mov[wmot[i] + 1]
-                            if n == 0:
-                                vproj = np.concatenate(
-                                    (vproj[0, :][np.newaxis, :], vproj), axis=0
-                                )
-                            V_mov[wmot[i] + 1][out_offset : out_offset + vproj.shape[0], :] = vproj
+                            vproj = lilbin @ U_mov[wmot[i]]
+                            V_mov[wmot[i] + 1][motion_frame_counter : motion_frame_counter + vproj.shape[0], :] = vproj
+"""
             if fullSVD:
                 if motSVD:
-                    vproj = imall_mot @ U_mot[0]
-                    if n == 0:
-                        vproj = np.concatenate(
-                            (vproj[0, :][np.newaxis, :], vproj), axis=0
-                        )
-                    V_mot[0][out_offset : out_offset + vproj.shape[0], :] = vproj
-                if movSVD:
-                    vproj = imall_mov @ U_mov[0]
-                    if n == 0:
-                        vproj = np.concatenate(
-                            (vproj[0, :][np.newaxis, :], vproj), axis=0
-                        )
-                    V_mov[0][out_offset : out_offset + vproj.shape[0], :] = vproj
+                    # imall_mot is n_frames x n_totalpixels_flat
+
+                    # U_mot: n_totalpixels_Flat x n_comps
+
+                    #all mean-centered motion frames (500)
+                    print("imall_mot:", imall_mot.shape)
+
+                    # projecting
+
+                    vproj = imall_mot @ U_mot
+                    print("vproj shape", vproj.shape)
+
+                    # putting into global vmot
+                    V_mot[motion_frame_counter : motion_frame_counter + vproj.shape[0], :] = vproj
+                    
+                    print(f"interval start {t0}, end {t1}, writing to rows {motion_frame_counter} to {motion_frame_counter + vproj.shape[0]}")
+
+                    motion_frame_counter += vproj.shape[0]
+
 
             if n % 10 == 0:
                 print(
@@ -1139,6 +1149,9 @@ def process_ROIs(
             update_mainwindow_progressbar(
                 MainWindow, GUIobject, s, "Computing ROIs and/or motSVD/movSVD "
             )
+            # updating
+
+            t0 += nt0
 
     update_mainwindow_message(
         MainWindow, GUIobject, "Finished computing ROIs and/or motSVD/movSVD "
@@ -1198,7 +1211,9 @@ def run(
     fps = 60
 ):
     """
-    Process video files using SVD computation of motion and/or raw movie data. 
+    Process video files using SVD computation of motion and/or raw movie data.
+    
+    To set ROIs, use FaceMap GUI to generate a proc file with ROI parameters.
     Parameters
     ----------
     filenames: 2D-list
@@ -1254,7 +1269,6 @@ def run(
             raise ValueError("Video height (Ly) or width (Lx) is NaN. Check your video file and metadata.")
         Lybin, Lxbin, iinds = binned_inds(Ly, Lx, sbin)
 
-        print("Video: ")
         if proc is None:
             sbin = sbin
             fullSVD = True
@@ -1273,7 +1287,6 @@ def run(
     LYbin, LXbin, sybin, sxbin = video_placement(Lybin, Lxbin)
 
     # number of mot/mov ROIs
-    """
     nroi = 0
     if rois is not None:
         for r in rois:
@@ -1285,13 +1298,14 @@ def run(
                     np.floor(r["xrange"][0] / sbin), np.floor(r["xrange"][-1]) / sbin
                 ).astype(int)
                 nroi += 1
-    """
+    
     tic = time.time()
     # compute average frame and average motion across videos (binned by sbin) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     tqdm.write("Computing subsampled mean...")
     avgframe, avgmotion = subsampled_mean(
         containers, cumframes, Ly, Lx, sbin, GUIobject, parent, start_sec, end_sec, fps
     )
+
     avgframe_reshape = multivideo_reshape(
         np.hstack(avgframe)[:, np.newaxis],
         LYbin,
@@ -1388,7 +1402,7 @@ def run(
     # Add V_mot and/or V_mov calculation: project U onto all movie frames ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # and compute pupil (if selected)
     tqdm.write("Computing ROIs and/or motSVD/movSVD")
-    V_mot, V_mov, M= process_ROIs(
+    V_mot, V_mov, M = process_ROIs(
         containers,
         cumframes,
         Ly,
