@@ -11,7 +11,7 @@ def _get_exp_tau(eig):
     xx = np.arange(len(eig))
     yy = (eig - eig.min()) / (eig.max() - eig.min())
     try:
-        (tau), pcov = curve_fit(lambda x, tau: exponential_decay(x, 1, 0, tau), xx, yy)
+        (tau), pcov = optimize.curve_fit(lambda x, tau: exponential_decay(x, 1, 0, tau), xx, yy)
     except:
         tau = np.nan
     return tau
