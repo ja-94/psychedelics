@@ -70,7 +70,7 @@ def _label_controls (session, controls=df_controls):
         return True
     elif len(control_session) == 0:
         return False
-    elif len(control_sesison) > 1:
+    elif len(control_session) > 1:
         raise ValueError("More than one entry in df_controls!")
 
 def _unpack_session_dict(series, one=None):
@@ -149,7 +149,7 @@ def fetch_insertions(one, save=True):
     # Pull out some basic fields from the session info dict
     df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns')
     # Unpack detailed QC info from the json
-    df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns')
+    #df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns')
     # Add any histology QC info present
     df_insertions = df_insertions.progress_apply(_check_histology, one=one, axis='columns')
     # Label and sort by session number for each subject
@@ -191,8 +191,8 @@ def _unpack_json(series):
             series['alignment_qc'] = series['json']['extended_qc'][alignment_resolved_by]
         except KeyError:
             series['alignment_qc'] = 'NOT SET'
-    elif not series['json']['extended_qc']['tracing_exists']:
-        series['tracing_qc'] = series['json']['extended_qc']['tracing']
+    else:
+        series['tracing_qc'] = series['json']['extended_qc'].get('tracing', 'NOT SET')
         series['alignment_qc'] = 'NOT SET'
     return series
 
