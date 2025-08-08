@@ -147,11 +147,11 @@ def fetch_insertions(one, save=True):
     insertions = one.alyx.rest('insertions', 'list', project=ibl_project['name'])
     df_insertions = pd.DataFrame(insertions).rename(columns={'id': 'pid', 'session': 'eid', 'name':'probe'})
     # Pull out some basic fields from the session info dict
-    df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns')
+    df_insertions = df_insertions.progress_apply(_unpack_session_info, axis='columns').copy()
     # Unpack detailed QC info from the json
-    #df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns')
+    df_insertions = df_insertions.progress_apply(_unpack_json, axis='columns').copy()
     # Add any histology QC info present
-    df_insertions = df_insertions.progress_apply(_check_histology, one=one, axis='columns')
+    df_insertions = df_insertions.progress_apply(_check_histology, one=one, axis='columns').copy()
     # Label and sort by session number for each subject
     df_insertions['session_n'] = df_insertions.groupby('subject')['start_time'].rank(method='dense').astype(int)
     df_insertions = df_insertions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
