@@ -59,12 +59,15 @@ def coarse_regions(acronyms):
         np.isin(acronyms, ['VISa1', 'VISa2/3', 'VISp4', 'VISp5', 'VISp6a', 'VISp6b', 'VISrl4', 'VISrl5', 'VISrl6a'])
     ] = 'Visual Ctx'
     regions[
-        np.isin(acronyms, ['SEZ', 'VL', 'alv', 'amc', 'ar', 'ccb', 'ccg', 'ccs', 'chpl', 'cing', 'ec', 'ee', 'em', 'fa', 'fi', 'fiber tracts',
-                           'fp', 'fr', 'int', 'opt', 'or', 'root', 'scwm', 'sm', 'st', 'void'])
-    ] = 'Fiber tract'
-    regions[
         np.isin(acronyms, ['CTXsp', 'EDp','EPd', 'EPv'])
     ] = 'Claustrum'
+    regions[
+        np.isin(acronyms, ['SEZ', 'VL', 'alv', 'amc', 'ar', 'ccb', 'ccg', 'ccs', 'chpl', 'cing', 'ec', 'ee', 'em', 'fa', 'fi', 'fiber tracts',
+                           'fp', 'fr', 'int', 'opt', 'or', 'scwm', 'sm', 'st'])
+    ] = 'Fiber tract'
+    regions[
+        np.isin(acronyms, ['root', 'void', None])
+    ] = 'None'
     return regions
     
 

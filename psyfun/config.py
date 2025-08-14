@@ -64,8 +64,8 @@ df_controls = pd.DataFrame(data=control_recordings, columns=['subject', 'date', 
 
 bwm_pretask_length = 5 * 60  # seconds 
 
-epoch_length = 5 * 60  # seconds
-postLSD_epochs = np.arange(0, 30, 10) * 60  # seconds
+postLSD_epoch_length = 5 * 60  # seconds
+postLSD_epoch_starts = np.arange(0, 30, 10) * 60  # seconds
 
 LSDCOLOR = 'mediumorchid'
 CONTROLCOLOR = 'mediumseagreen'

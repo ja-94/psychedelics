@@ -10,7 +10,19 @@ plt.rcParams['axes.labelsize'] = LABELFONTSIZE
 plt.rcParams['xtick.labelsize'] = LABELFONTSIZE 
 plt.rcParams['ytick.labelsize'] = LABELFONTSIZE 
 plt.rcParams['legend.fontsize'] = LABELFONTSIZE 
-plt.rcParams['axes.titlesize'] = LABELFONTSIZE 
+plt.rcParams['axes.titlesize'] = LABELFONTSIZE
+
+def pval2stars(p, ns='n.s.', na='n/a'):
+    if np.isnan(p):
+        return na
+    elif p < 0.001:
+        return '***'
+    elif p < 0.01:
+        return '**'
+    elif p < 0.05:
+        return '*'
+    else:
+        return ns
 
 def set_plotsize(w, h=None, ax=None):
     """
