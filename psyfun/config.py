@@ -11,6 +11,7 @@ paths = {
     'metadata': 'metadata/metadata.csv',
     'sessions': 'metadata/sessions.pqt',
     'insertions': 'metadata/insertions.pqt',
+    'trajectories': 'metadata/trajectories.csv',
     'units': 'data/units.pqt',
     'spikes': 'data/spikes.h5',
     'BWM_insertions': 'metadata/BWM_insertions.pqt',

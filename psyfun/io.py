@@ -43,12 +43,14 @@ def fetch_sessions(one, save=True, qc=False):
         df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns').copy()
     # Check if important datasets are present for the session
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
-    df_sessions['n_tasks'] = df_sessions.apply(lambda x: len(x['task_protocol'].split('/')), axis='columns')
+    df_sessions['n_tasks'] = df_sessions['task_protocol'].apply(lambda x: sum(['passive' in task.lower() for task in x.split('_')]))
     df_sessions['tasks'] = df_sessions.apply(lambda x: x['task_protocol'].split('/'), axis='columns')
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns').copy()
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
     df_sessions['new_recording'] = df_sessions['start_time'].apply(lambda x: datetime.fromisoformat(x) > datetime(2025, 1, 1))
+    df_trajectories = pd.read_csv(paths['trajectories'])
+    df_sessions = df_sessions.apply(_get_trajectory_labels, df_trajectories=df_trajectories, axis='columns').copy()
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns').copy()
     # Add LSD administration time
@@ -123,6 +125,21 @@ def _check_datasets(series, one=None):
         series[dataset] = dataset in datasets
     return series
 
+
+def _get_trajectory_labels(series, df_trajectories=None):
+    assert df_trajectories is not None
+    eid = series['eid']
+    trajectories = df_trajectories.query('eid == @eid')
+    if len(trajectories) == 1:
+        trajectories = trajectories.iloc[0]
+        for col in trajectories.index:
+            if col in ['date', 'subject', 'eid']:
+                continue
+            series[col] = trajectories[col]
+    elif len(trajectories) > 1:
+        raise ValueError(f"Multiple trajectories found for eid {eid}")
+    return series
+    
 
 def fetch_insertions(one, save=True):
     """
