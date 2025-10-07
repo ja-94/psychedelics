@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -7,16 +8,22 @@ ibl_project = {
     'protocol': 'passiveChoiceWorld'
 }
 
+from pathlib import Path
+
+# If data is in project root, not in psyfun/
+PACKAGE_ROOT = Path(__file__).parent
+PROJECT_ROOT = PACKAGE_ROOT.parent
+
 paths = {
-    'metadata': 'metadata/metadata.csv',
-    'sessions': 'metadata/sessions.pqt',
-    'insertions': 'metadata/insertions.pqt',
-    'trajectories': 'metadata/trajectories.csv',
-    'units': 'data/units.pqt',
-    'spikes': 'data/spikes.h5',
-    'BWM_insertions': 'metadata/BWM_insertions.pqt',
-    'BWM_units': 'data/BWM_units.pqt',
-    'BWM_spikes': 'data/BWM_spikes.h5',
+    'metadata': PROJECT_ROOT / Path('metadata/metadata.csv'),
+    'sessions': PROJECT_ROOT / Path('metadata/sessions.pqt'),
+    'insertions': PROJECT_ROOT / Path('metadata/insertions.pqt'),
+    'trajectories': PROJECT_ROOT / Path('metadata/trajectories.csv'),
+    'units': PROJECT_ROOT / Path('data/units.pqt'),
+    'spikes': PROJECT_ROOT / Path('data/spikes.h5'),
+    'BWM_insertions': PROJECT_ROOT / Path('metadata/BWM_insertions.pqt'),
+    'BWM_units': PROJECT_ROOT / Path('data/BWM_units.pqt'),
+    'BWM_spikes': PROJECT_ROOT / Path('data/BWM_spikes.h5'),
 }
 
 qc_datasets = {

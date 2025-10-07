@@ -417,6 +417,9 @@ def load_units(spike_file, uuids):
             units.append(unit)
     return pd.DataFrame(units).set_index('uuid')
 
+def load_sessions():
+    return pd.read_parquet(paths['sessions'])
+
 def fetch_BWM_task_starts(one, save=True):
     # All BWM ephys sessions
     eids = np.array(one.search(project='brainwide', task_protocol='ephys'))
