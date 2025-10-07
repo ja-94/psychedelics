@@ -6,11 +6,11 @@ paths.json
 
 test_project/
 
+# Project data
 data/
-
+metadata/sessions.pqt
+metadata/insertions.pqt
 
 # Python package installation
 *.egg-info/
-dist/
-build/
 *.egg
