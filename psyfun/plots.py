@@ -4,7 +4,7 @@ from matplotlib import colors
 
 from psyfun.config import *
 
-LABELFONTSIZE = 8
+LABELFONTSIZE = 14
 plt.rcParams['figure.dpi'] = 180
 plt.rcParams['axes.labelsize'] = LABELFONTSIZE
 plt.rcParams['xtick.labelsize'] = LABELFONTSIZE 

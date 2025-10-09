@@ -1,4 +1,4 @@
-date,subject,eid,t1,t1_error,t2,t2_error
+date,subject,eid,trajectory_01,error_t01,trajectory_02,error_t02
 11.03.2025,ZFM-08457,c7cf8e25-1e2c-4b03-a5f5-5a049f1cd228,T2.1L,FALSE,T1.1L,TRUE
 11.03.2025,ZFM-08458,3e9d9490-7fb2-4aa3-b8cd-83f216ad8cde,T2.1L,FALSE,T1.1L,TRUE
 12.03.2025,ZFM-08584,e8128c55-b322-438a-9498-edd47ae4b794,T1.2R,FALSE,T2.2R,FALSE

@@ -12,6 +12,7 @@ from iblatlas.atlas import AllenAtlas
 atlas = AllenAtlas()
 
 from .config import *
+from .util import get_insertion_trajectory_labels
 
 def fetch_sessions(one, save=True, qc=False):
     """
@@ -49,8 +50,9 @@ def fetch_sessions(one, save=True, qc=False):
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
     df_sessions['new_recording'] = df_sessions['start_time'].apply(lambda x: datetime.fromisoformat(x) > datetime(2025, 1, 1))
-    df_trajectories = pd.read_csv(paths['trajectories'])
-    df_sessions = df_sessions.apply(_get_trajectory_labels, df_trajectories=df_trajectories, axis='columns').copy()
+    # df_trajectories = pd.read_csv(paths['trajectories'])
+    # df_sessions = df_sessions.apply(_get_trajectory_labels, df_trajectories=df_trajectories, axis='columns').copy()
+    df_sessions = get_insertion_trajectory_labels(df_sessions)
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns').copy()
     # Add LSD administration time
@@ -123,21 +125,6 @@ def _check_datasets(series, one=None):
     # Check if each important dataset is present
     for dataset in qc_datasets['video']:
         series[dataset] = dataset in datasets
-    return series
-
-
-def _get_trajectory_labels(series, df_trajectories=None):
-    assert df_trajectories is not None
-    eid = series['eid']
-    trajectories = df_trajectories.query('eid == @eid')
-    if len(trajectories) == 1:
-        trajectories = trajectories.iloc[0]
-        for col in trajectories.index:
-            if col in ['date', 'subject', 'eid']:
-                continue
-            series[col] = trajectories[col]
-    elif len(trajectories) > 1:
-        raise ValueError(f"Multiple trajectories found for eid {eid}")
     return series
     
 
@@ -403,12 +390,12 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
     return df_uinfo
 
 
-def load_units(spike_file, uuids):
+def load_spikes(uuids):
     #Takes in a list of unit IDs and the spike file name
-    if not spike_file.endswith('.h5'):
-        spike_file = spike_file.split('.')[0] + '.h5'
+    # if not spike_file.endswith('.h5'):
+    #     spike_file = spike_file.split('.')[0] + '.h5'
     units = []
-    with h5py.File(spike_file, 'r') as h5file:
+    with h5py.File(paths['spikes'], 'r') as h5file:
         for uuid in tqdm(uuids):
             unit = {
                 'uuid': uuid,
@@ -419,6 +406,9 @@ def load_units(spike_file, uuids):
 
 def load_sessions():
     return pd.read_parquet(paths['sessions'])
+
+def load_units(add_coarse_regions=True):
+    return pd.read_parquet(paths['units'])  # unit info
 
 def fetch_BWM_task_starts(one, save=True):
     # All BWM ephys sessions

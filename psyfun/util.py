@@ -116,6 +116,34 @@ def label_first_sessions(df, condition=None, label='first_session'):
     return df
 
 
+def get_insertion_trajectory_labels(df_sessions, drop=True):
+    df_trajectories = pd.read_csv(paths['trajectories'])
+    df_sessions = df_sessions.apply(_apply_trajectory_labels, df_trajectories=df_trajectories, axis='columns').copy()
+    if drop:
+        df_sessions = df_sessions.dropna(subset=['trajectory_01', 'trajectory_02'])
+    df_sessions['trajectory_label'] = df_sessions.apply(
+        lambda x: '_'.join([
+            str(x['trajectory_01']).rstrip('L').rstrip('R'), 
+            str(x['trajectory_02']).rstrip('L').rstrip('R')
+            ]), 
+        axis='columns'
+    )
+    return df_sessions
+
+def _apply_trajectory_labels(series, df_trajectories):
+    # assert df_trajectories is not None
+    eid = series['eid']
+    trajectories = df_trajectories.query('eid == @eid')
+    if len(trajectories) == 1:
+        trajectories = trajectories.iloc[0]
+        for col in trajectories.index:
+            if col in ['date', 'subject', 'eid']:
+                continue
+            series[col] = trajectories[col]
+    elif len(trajectories) > 1:
+        raise ValueError(f"Multiple trajectory entries found for eid {eid}")
+    return series
+
 def sliding_epochs(df, t0='LSD_admin', epochs=postLSD_epoch_starts, length=postLSD_epoch_length, return_cols=False):
     prefix = re.sub(r'(_start|_stop)$', '', t0)
     # Prepare a dict to hold all new columns
@@ -170,7 +198,7 @@ def power_law_slope(eig, rank=100):
     res = stats.linregress(np.log(xx), np.log(eig[:rank]))
     return res.slope
 
-def ngsc(a):
+def normalized_entropy(a):
     return stats.entropy(a) / np.log2(len(a))
 
 def angle(v1, v2):
