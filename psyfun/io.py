@@ -12,12 +12,11 @@ from iblatlas.atlas import AllenAtlas
 atlas = AllenAtlas()
 
 from .config import *
-from .util import get_insertion_trajectory_labels
 
 def fetch_sessions(one, save=True, qc=False):
     """
     Query Alyx for sessions tagged in the psychedelics project and add session
-    info to a dataframe. Sessions are restricted to those with the 
+    info to a dataframe. Sessions are restricted to those with the
     passiveChoiceWorld task protocol, quality control metadata is unpacked, and
     a list of key datasets is checked. Sessions are sorted and labelled
     (session_n) by their order.
@@ -50,14 +49,13 @@ def fetch_sessions(one, save=True, qc=False):
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
     df_sessions['new_recording'] = df_sessions['start_time'].apply(lambda x: datetime.fromisoformat(x) > datetime(2025, 1, 1))
-    # df_trajectories = pd.read_csv(paths['trajectories'])
-    # df_sessions = df_sessions.apply(_get_trajectory_labels, df_trajectories=df_trajectories, axis='columns').copy()
-    df_sessions = get_insertion_trajectory_labels(df_sessions)
+    # Add label for the electrode insertion trajectories
+    df_sessions = get_trajectory_labels(df_sessions)
     # Fetch task protocol timings and add to dataframe
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns').copy()
     # Add LSD administration time
     df_meta = load_metadata()
-    df_sessions = df_sessions.progress_apply(_fetch_LSD_admin_time, df_metadata=df_meta, axis='columns').copy()
+    df_sessions = df_sessions.apply(_insert_LSD_admin_time, df_metadata=df_meta, axis='columns').copy()
     # Label and sort by session number for each subject
     df_sessions['session_n'] = df_sessions.groupby('subject')['start_time'].rank(method='dense').astype(int)
     df_sessions = df_sessions.sort_values(by=['subject', 'start_time']).reset_index(drop=True)
@@ -66,21 +64,13 @@ def fetch_sessions(one, save=True, qc=False):
         df_sessions.to_parquet(paths['sessions'], index=False)
     return df_sessions
 
-def _label_controls (session, controls=df_controls):
-    eid = session['eid']
-    control_session = controls.query('eid == @eid')
-    if len(control_session) == 1:
-        return True
-    elif len(control_session) == 0:
-        return False
-    elif len(control_session) > 1:
-        raise ValueError("More than one entry in df_controls!")
 
 def _unpack_session_dict(series, one=None):
     """
     Unpack the extended QC from the session dict for a given eid.
     """
     assert one is not None
+    print("Unpacking quality control data...")
     # Fetch full session dict
     session_dict = one.alyx.rest('sessions', 'read', id=series['eid'])
     series['session_qc'] = session_dict['qc']  # aggregate session QC value
@@ -90,10 +80,10 @@ def _unpack_session_dict(series, one=None):
     # Add QC vals to series
     for key, val in session_dict['extended_qc'].items():
         key = key.lstrip('_')
-        # Add _qc flag to any keys that don't have it 
+        # Add _qc flag to any keys that don't have it
         if not key.endswith('_qc'): key += '_qc'
         if type(val) == str:
-           series[key] = val 
+           series[key] = val
         elif type(val) == list:  # lists have QC outcome as first entry
             series[key] = val[0]
             # Add video framerate
@@ -110,23 +100,152 @@ def _check_datasets(series, one=None):
     Create a boolean entry for each important dataset for the given eid.
     """
     assert one is not None
+    print("Checking datasets...")
     # Fetch list of datasets listed under the given eid
     datasets = one.list_datasets(series['eid'])
     # Check each task in the recording
     for n, protocol in enumerate(series['tasks']):
         # TODO: handle spontaneous protocol in 2025 recordings!
-        if 'spontaneous' in protocol: 
+        if 'spontaneous' in protocol:
             continue
         for dataset in qc_datasets['task']:
             series[dataset] = dataset in datasets
     for n in range(series['n_probes']):
         for dataset in qc_datasets['ephys']:
-            series[dataset] = dataset in datasets  
+            series[dataset] = dataset in datasets
     # Check if each important dataset is present
     for dataset in qc_datasets['video']:
         series[dataset] = dataset in datasets
     return series
-    
+
+
+def _label_controls (session, controls=df_controls):
+    eid = session['eid']
+    control_session = controls.query('eid == @eid')
+    if len(control_session) == 1:
+        return True
+    elif len(control_session) == 0:
+        return False
+    elif len(control_session) > 1:
+        raise ValueError("More than one entry in df_controls!")
+
+
+def _fetch_protocol_timings(series, one=None):
+    """
+    Get timings of protocol events throughout the recording sesison.
+    """
+    assert one is not None
+    print("Fetching protocol timings...")
+    session_details = one.get_details(series['eid'])
+    session_start = datetime.fromisoformat(session_details['start_time'])
+    task_count = 0
+    for n, protocol in enumerate(series['tasks']):
+        collection = f'raw_task_data_{n:02d}'
+        try:
+            # Get start time of spontaneous epoch
+            task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
+        except:
+            print(f"WARNING: no taskSettings for {series['eid']} {collection}")
+            continue
+        spontaneous_start_str = task_settings.get('SESSION_DATETIME')  # try old entry name
+        if spontaneous_start_str is None:
+            spontaneous_start_str = task_settings.get('SESSION_START_TIME')  # try new entry name
+        if spontaneous_start_str is None:
+            raise KeyError("Neither 'SESSION_DATETIME' nor 'SESSION_START_TIME' found")
+        spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
+        # FIXME: handle spontaneous protocol in 2025 recordings more gracefully!
+        if 'spontaneous' in protocol:
+            # Check for one session where LSD admin was delayed by ~40min
+            if series['eid'] != '4b874c49-3c0c-4f30-9b1f-74c9dbfb57c8':
+                # Assume LSD was given at start of spontaneous period
+                series['LSD_admin'] = (spontaneous_start - session_start).seconds
+            continue
+        # Get gabor patch presentation timings for task replay epoch
+        df_gabor = one.load_dataset(series['eid'], '_iblrig_stimPositionScreen.raw.csv', collection)
+        # first stimulus becomes the header, so we need to pull it out
+        df_gabor = pd.concat([pd.DataFrame([df_gabor.columns], columns=df_gabor.columns), df_gabor], ignore_index=True)
+        # Get start time of first gabor
+        datetime_str = df_gabor.iloc[0, 2]  # start time is in second column
+        replay_start = _datetime_clip_decimals_to_iso(datetime_str)
+        # Get start time of last gabor
+        datetime_str = df_gabor.iloc[-1, 2]
+        replay_stop = _datetime_clip_decimals_to_iso(datetime_str)
+        # Convert datetimes to seconds since session start
+        spontaneous_start = (spontaneous_start - session_start).seconds
+        replay_start = (replay_start - session_start).seconds
+        replay_stop = (replay_stop - session_start).seconds
+        # Fill missing values with estimates based on protocol
+        spontaneous_stop = rfm_start = spontaneous_start + 5 * 60
+        rfm_stop = replay_start
+        # Insert everything into series object
+        series[f'task{task_count:02d}_spontaneous_start'] = spontaneous_start
+        series[f'task{task_count:02d}_spontaneous_stop'] = spontaneous_stop
+        series[f'task{task_count:02d}_rfm_start'] = rfm_start
+        series[f'task{task_count:02d}_rfm_stop'] = rfm_stop
+        series[f'task{task_count:02d}_replay_start'] = replay_start
+        series[f'task{task_count:02d}_replay_stop'] = replay_stop
+        task_count += 1
+    return series
+
+
+def _insert_LSD_admin_time(series, df_metadata=None):
+    assert df_metadata is not None
+    # Find entry in metadata file by subject and date
+    session_meta = df_metadata[
+        (df_metadata['animal_ID'] == series['subject']) &
+        (df_metadata['date'] == datetime.fromisoformat(series['start_time']).date())
+    ]
+    # Ensure only one entry is present
+    if len(session_meta) < 1:
+        warnings.warn(f"No entries in 'recordings.csv' for {series['eid']}")
+        return series
+    elif len(session_meta) > 1:
+        warnings.warn(f"More than one entry in 'recordings.csv' for {series['eid']}")
+        return series
+    series['LSD_admin'] = session_meta['administration_time'].values[0]
+    return series
+
+
+def get_trajectory_labels(df_sessions, drop=True, hemisphere=True):
+    df_trajectories = pd.read_csv(paths['trajectories'])
+    df_sessions = df_sessions.apply(
+        _insert_trajectory_labels,
+        df_trajectories=df_trajectories,
+        axis='columns'
+        ).copy()
+    if drop:
+        df_sessions = df_sessions.dropna(subset=['trajectory_01', 'trajectory_02'])
+    if hemisphere:
+        combine_labels = lambda x: '_'.join([
+            str(x['trajectory_01']),
+            str(x['trajectory_02'])
+            ])
+    else:
+        combine_labels = lambda x: '_'.join([
+            str(x['trajectory_01']).rstrip('L').rstrip('R'),
+            str(x['trajectory_02']).rstrip('L').rstrip('R')
+            ])
+    df_sessions['trajectory_label'] = df_sessions.apply(
+        combine_labels,
+        axis='columns'
+    )
+    return df_sessions
+
+
+def _insert_trajectory_labels(series, df_trajectories):
+    # assert df_trajectories is not None
+    eid = series['eid']
+    trajectories = df_trajectories.query('eid == @eid')
+    if len(trajectories) == 1:
+        trajectories = trajectories.iloc[0]
+        for col in trajectories.index:
+            if col in ['date', 'subject', 'eid']:
+                continue
+            series[col] = trajectories[col]
+    elif len(trajectories) > 1:
+        raise ValueError(f"Multiple trajectory entries found for eid {eid}")
+    return series
+
 
 def fetch_insertions(one, save=True):
     """
@@ -217,7 +336,7 @@ def _check_histology(series, one=None):
 
 def load_metadata():
     """
-    Loads recording metadata .csv as a pandas DataFrame. Converts date column 
+    Loads recording metadata .csv as a pandas DataFrame. Converts date column
     to a datetime object and administration time to seconds.
     """
     df_meta = pd.read_csv(paths['metadata'])
@@ -227,86 +346,11 @@ def load_metadata():
     return df_meta
 
 
-def _fetch_protocol_timings(series, one=None):
-    """
-    Get timings of protocol events throughout the recording sesison.
-    """
-    assert one is not None
-    session_details = one.get_details(series['eid'])
-    session_start = datetime.fromisoformat(session_details['start_time'])
-    task_count = 0
-    for n, protocol in enumerate(series['tasks']):
-        collection = f'raw_task_data_{n:02d}'
-        try:
-            # Get start time of spontaneous epoch
-            task_settings = one.load_dataset(series['eid'], '_iblrig_taskSettings.raw.json', collection)
-        except:
-            print(f"WARNING: no taskSettings for {series['eid']} {collection}")
-            continue
-        spontaneous_start_str = task_settings.get('SESSION_DATETIME')  # try old entry name
-        if spontaneous_start_str is None:
-            spontaneous_start_str = task_settings.get('SESSION_START_TIME')  # try new entry name
-        if spontaneous_start_str is None:
-            raise KeyError("Neither 'SESSION_DATETIME' nor 'SESSION_START_TIME' found")
-        spontaneous_start = datetime.fromisoformat(spontaneous_start_str)  # convert to datetime object
-        # FIXME: handle spontaneous protocol in 2025 recordings more gracefully!
-        if 'spontaneous' in protocol:
-            # Check for one session where LSD admin was delayed by ~40min
-            if series['eid'] != '4b874c49-3c0c-4f30-9b1f-74c9dbfb57c8':  
-                # Assume LSD was given at start of spontaneous period
-                series['LSD_admin'] = (spontaneous_start - session_start).seconds
-            continue
-        # Get gabor patch presentation timings for task replay epoch
-        df_gabor = one.load_dataset(series['eid'], '_iblrig_stimPositionScreen.raw.csv', collection)
-        # first stimulus becomes the header, so we need to pull it out
-        df_gabor = pd.concat([pd.DataFrame([df_gabor.columns], columns=df_gabor.columns), df_gabor], ignore_index=True)
-        # Get start time of first gabor
-        datetime_str = df_gabor.iloc[0, 2]  # start time is in second column
-        replay_start = _datetime_clip_decimals_to_iso(datetime_str)
-        # Get start time of last gabor
-        datetime_str = df_gabor.iloc[-1, 2]
-        replay_stop = _datetime_clip_decimals_to_iso(datetime_str)
-        # Convert datetimes to seconds since session start
-        spontaneous_start = (spontaneous_start - session_start).seconds            
-        replay_start = (replay_start - session_start).seconds
-        replay_stop = (replay_stop - session_start).seconds
-        # Fill missing values with estimates based on protocol
-        spontaneous_stop = rfm_start = spontaneous_start + 5 * 60
-        rfm_stop = replay_start
-        # Insert everything into series object
-        series[f'task{task_count:02d}_spontaneous_start'] = spontaneous_start
-        series[f'task{task_count:02d}_spontaneous_stop'] = spontaneous_stop
-        series[f'task{task_count:02d}_rfm_start'] = rfm_start
-        series[f'task{task_count:02d}_rfm_stop'] = rfm_stop
-        series[f'task{task_count:02d}_replay_start'] = replay_start
-        series[f'task{task_count:02d}_replay_stop'] = replay_stop
-        task_count += 1
-    return series
-
-
 def _datetime_clip_decimals_to_iso(datetime_str):
     main, decimals = datetime_str.split('.')
     decimals = decimals[:6]  # keep only 6 digits
     datetime_str = f"{main}.{decimals}"
     return datetime.fromisoformat(datetime_str)
-
-
-def _fetch_LSD_admin_time(series, df_metadata=None):
-    assert df_metadata is not None
-    # Find entry in metadata file by subject and date
-    session_meta = df_metadata[
-        (df_metadata['animal_ID'] == series['subject']) & 
-        (df_metadata['date'] == datetime.fromisoformat(series['start_time']).date())
-    ]
-    # Ensure only one entry is present
-    if len(session_meta) < 1:
-        warnings.warn(f"No entries in 'recordings.csv' for {series['eid']}")
-        return series
-    elif len(session_meta) > 1:
-        warnings.warn(f"More than one entry in 'recordings.csv' for {series['eid']}")
-        return series
-    series['LSD_admin'] = session_meta['administration_time'].values[0]
-    return series
 
 
 class PsySpikeSortingLoader(SpikeSortingLoader):
@@ -359,9 +403,6 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
         df_probe['histology'] = loader.histology
         # Save spike times if a filename is given
         if spike_file:
-            # Check hdf5 filename
-            if not spike_file.endswith('.h5'):
-                spike_file = spike_file.split('.')[0] + '.h5'
             # Load spike time for each probe collection separately to conserve memory
             for collection in loader.collections:
                 spikes = one.load_object(probe['eid'], collection=collection, obj='spikes', attribute=['times', 'clusters'])
@@ -384,16 +425,11 @@ def fetch_unit_info(one, df_insertions, uinfo_file='', spike_file='', atlas=atla
     df_uinfo['histology'] = df_uinfo['histology'].fillna('')
     df_uinfo = df_uinfo.rename(columns={'acronym': 'region'})
     if uinfo_file:
-        if not uinfo_file.endswith('.pqt'):
-            uinfo_file = uinfo_file.split('.')[0] + '.pqt'
         df_uinfo.to_parquet(uinfo_file, index=False)
     return df_uinfo
 
 
 def load_spikes(uuids):
-    #Takes in a list of unit IDs and the spike file name
-    # if not spike_file.endswith('.h5'):
-    #     spike_file = spike_file.split('.')[0] + '.h5'
     units = []
     with h5py.File(paths['spikes'], 'r') as h5file:
         for uuid in tqdm(uuids):
@@ -404,11 +440,62 @@ def load_spikes(uuids):
             units.append(unit)
     return pd.DataFrame(units).set_index('uuid')
 
+
 def load_sessions():
     return pd.read_parquet(paths['sessions'])
 
+
 def load_units(add_coarse_regions=True):
     return pd.read_parquet(paths['units'])  # unit info
+
+
+def load_session_spikes(
+    session_filter=TASKTIMINGS,
+    unit_filter='ks2_label == "good"'
+    ):
+    """
+    # unit_filter = 'ks2_label == "good"'  # kilosort label for well-isolated units, as opposed to multi-unit activity (mua)
+    # unit_filter = 'label == 1.0'  # more conservative IBL quality criterion
+    # Additional filters can be constructed using any column of the unit metadata
+    """
+    # Load sessions
+    df_sessions = load_sessions()  # session info
+    print(f"Total sessions: {len(df_sessions)}")
+    # Remove sessions missing timing information for important experimental epochs
+    df_sessions = df_sessions.dropna(subset=session_filter)
+    # Get eids for remaining sessions
+    eids = df_sessions['eid'].tolist()
+    print(f"Valid sessions: {len(df_sessions)}")
+
+    # Load units
+    df_units = load_units()  # unit info
+    df_units = df_units.query('eid in @eids')
+    print(f"Total units in valid sessions: {len(df_units)}")
+    # Remove low-quality units
+    df_units = df_units.query(unit_filter)
+    print(f"Good units in valid sessions: {len(df_units)}")
+
+    # Load spike times
+    print("Loading spike times...")
+    df_spiketimes = load_spikes(df_units['uuid'])
+    # Join spike times with unit info
+    df_spikes = df_units.set_index('uuid').join(df_spiketimes).reset_index()
+    # Merge session info into spikes dataframe
+    df_spikes = pd.merge(
+        df_spikes, df_sessions, on=['subject', 'eid', 'session_n'], how='left'
+        )
+
+    # Remove units missing timing information
+    ## TODO: look into how this can happen!!
+    n_before = len(df_spikes)
+    df_spikes = df_spikes.dropna(subset=session_filter)
+    n_after = len(df_spikes)
+    if n_before > n_after:
+        print(f"Removed {n_before - n_after} units with missing timing info")
+    print(f"Final units with valid timings: {n_after}")
+
+    return df_spikes
+
 
 def fetch_BWM_task_starts(one, save=True):
     # All BWM ephys sessions

@@ -24,6 +24,7 @@ paths = {
     'BWM_insertions': PROJECT_ROOT / Path('metadata/BWM_insertions.pqt'),
     'BWM_units': PROJECT_ROOT / Path('data/BWM_units.pqt'),
     'BWM_spikes': PROJECT_ROOT / Path('data/BWM_spikes.h5'),
+    'figures': PROJECT_ROOT / Path('figures')
 }
 
 qc_datasets = {
@@ -75,14 +76,29 @@ control_recordings = [
 ]
 df_controls = pd.DataFrame(data=control_recordings, columns=['subject', 'date', 'eid'])
 
-bwm_pretask_length = 5 * 60  # seconds 
+TASKTIMINGS = [
+    'task00_spontaneous_start', 'task00_spontaneous_stop',
+    'task00_rfm_start', 'task00_rfm_stop',
+    'task00_replay_start', 'task00_replay_stop',
+    'LSD_admin',
+    'task01_spontaneous_start', 'task01_spontaneous_stop',
+    'task01_rfm_start', 'task01_rfm_stop',
+    'task01_replay_start', 'task01_replay_stop'
+    ]
+
+bwm_pretask_length = 5 * 60  # seconds
 
 postLSD_epoch_length = 5 * 60  # seconds
 postLSD_epoch_starts = np.arange(0, 30, 10) * 60  # seconds
 
+FIGUREDPI = 180
+LABELFONTSIZE = 14
 LSDCOLOR = 'mediumorchid'
 CONTROLCOLOR = 'mediumseagreen'
-cmaps = {
+CMAPS = {
+    'recording_type': mpl.colors.LinearSegmentedColormap.from_list(
+        'rec_type', [(0., 'white'), (0.01, LSDCOLOR), (1., CONTROLCOLOR)]
+        ),
     'n_units': mpl.colormaps['Reds'],
     'LSD': mpl.colors.LinearSegmentedColormap.from_list("LSD_cmap", ['gray', LSDCOLOR]),
     'control': mpl.colors.LinearSegmentedColormap.from_list("control_cmap", ['gray', CONTROLCOLOR]),
@@ -93,7 +109,7 @@ cmaps = {
 }
 
 # Map QC flags to numbers for plotting
-QCVAL2NUM = {  
+QCVAL2NUM = {
     np.nan: 0.,
     'NOT SET': 0.01,
     'NOT_SET': 0.01,
@@ -103,4 +119,4 @@ QCVAL2NUM = {
     'FAIL': 0.1
 }
 
-ap_coords = [2, 1, 0, -1, -2, -3, -4]  # mm
+BRAINSLICEAPCOORDS = [2, 1, 0, -1, -2, -3, -4]  # mm
