@@ -10,6 +10,8 @@ test_project/
 data/
 metadata/sessions.pqt
 metadata/insertions.pqt
+results/
+figures/
 
 # Python package installation
 *.egg-info/
