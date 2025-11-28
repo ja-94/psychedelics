@@ -32,7 +32,7 @@ def bootstrap_median_ci(data, n_bootstrap=1000, alpha=0.05):
     ci_upper = np.percentile(medians, 100 * (1 - alpha / 2))
     return ci_lower, ci_upper
 
-def sort_groups(df, value_col, groupby_col, aggfunc=np.median,
+def sort_groups(df, value_col, groupby_col, agg_func=None,
                 reference_condition=None, ascending=False):
     """
     Compute sorting order based on global data or a reference condition.
@@ -70,7 +70,7 @@ def sort_groups(df, value_col, groupby_col, aggfunc=np.median,
     group_values = {}
     for group in groups:
         group_data = df[df[groupby_col] == group]
-        group_values[group] = aggfunc(group_data[value_col])
+        group_values[group] = agg_func(group_data)
 
     # Sort groups by their aggregated values
     sorted_groups = sorted(group_values.keys(),

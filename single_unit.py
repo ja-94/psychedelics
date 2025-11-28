@@ -113,8 +113,10 @@ df_singleunit.to_parquet(PROJECT_ROOT / f'data/singleunit_{timestamp}.pqt')
 #### END OF ANALYSIS LOOP ######################################################
 
 
-df_singleunit = pd.read_parquet(PROJECT_ROOT / 'data/singleunit_20251013_105650.pqt')
-
+df_singleunit = pd.read_parquet(PROJECT_ROOT / 'data/singleunit_20251016_121250.pqt')
+df_singleunit['condition'] = df_singleunit['control_recording'].apply(
+    lambda x: 'Saline' if x else 'LSD'
+    ).astype('category')
 
 # Plot mean rate changes across
 for epoch in epoch_pairs.keys():
@@ -156,7 +158,7 @@ metric_names = np.unique([
 for metric in metric_names:
     for epoch in epoch_pairs.keys():
         fig, ax = plt.subplots()
-        ax.set_title(epoch.title())
+        ax.set_title(EPOCHLABELS[epoch])
         for control in [False, True]:
             df_condition = df_singleunit.query('control_recording == @control')
             plots.paired_plot(
@@ -171,10 +173,13 @@ for metric in metric_names:
         ax.set_xticks([0, 1])
         ax.set_xticklabels(['Pre', 'Post'])
         ax.set_xlim([-0.2, 1.2])
-        plots.auto_tick(ax.yaxis)
-        ax.set_ylabel(metric)
+        if metric in METRICMEANTICKS.keys():
+            ax.set_yticks(METRICMEANTICKS[metric])
+        else:
+            plots.auto_tick(ax.yaxis)
+        ax.set_ylabel(METRICLABELS[metric])
         plots.clip_axes_to_ticks(ax=ax)
-        plots.set_plotsize(w=4, h=8, ax=ax)
+        plots.set_plotsize(w=2, h=4, ax=ax)
         fig.savefig(PROJECT_ROOT / f'figures/{epoch}_{metric}.svg')
 
 
@@ -276,51 +281,51 @@ for metric in metric_names:
 # ~ax2.set_title('Q-Q Plot')
 
 
-## Closer look at Fano factor (dt=10)
-metric = 'fano_factor_dt10.0'
-lmm_formula = f'~ task * condition + (1 | subject)'  # significiant interaction
-lmm_formula = f'~ task * condition + (task | subject)'  # marginal
-for epoch in ['spontaneous', 'replay']:
-    print("\n====")
-    print(f"{metric} - {epoch}")
-    print("LMM: ", lmm_formula)
-    print("====")
+## Closer look at a given metric
+# ~metric = 'fano_factor_dt10.0'
+# ~lmm_formula = f'~ task * condition + (1 | subject)'  # significiant interaction
+# ~lmm_formula = f'~ task * condition + (task | subject)'  # marginal
+# ~for epoch in ['spontaneous', 'replay']:
+    # ~print("\n====")
+    # ~print(f"{metric} - {epoch}")
+    # ~print("LMM: ", lmm_formula)
+    # ~print("====")
 
-    # Prepare the dataframe (convert to long format)
-    metric_cols = [
-        col for col in df_singleunit.columns if
-        any(col.endswith(f'_{task}') for task in ['task00', 'task01']) and
-        metric in col
-        ]
-    df_metric = df_singleunit.reset_index().melt(
-        id_vars=['subject', 'eid', 'control_recording', 'uuid'],
-        value_vars=metric_cols,
-        var_name='epoch',
-        value_name=metric
-        )
-    df_metric['task'] = df_metric['epoch'].apply(
-        lambda x: x.split('_')[-1]
-        ).astype('category')
-    df_metric['epoch'] = df_metric['epoch'].apply(
-        lambda x: x.split('_')[0]
-        ).astype('category')
-    df_metric['condition'] = df_metric['control_recording'].map(
-        {True: 'control', False: 'lsd'}
-        ).astype('category')
+    # ~# Prepare the dataframe (convert to long format)
+    # ~metric_cols = [
+        # ~col for col in df_singleunit.columns if
+        # ~any(col.endswith(f'_{task}') for task in ['task00', 'task01']) and
+        # ~metric in col
+        # ~]
+    # ~df_metric = df_singleunit.reset_index().melt(
+        # ~id_vars=['subject', 'eid', 'control_recording', 'uuid'],
+        # ~value_vars=metric_cols,
+        # ~var_name='epoch',
+        # ~value_name=metric
+        # ~)
+    # ~df_metric['task'] = df_metric['epoch'].apply(
+        # ~lambda x: x.split('_')[-1]
+        # ~).astype('category')
+    # ~df_metric['epoch'] = df_metric['epoch'].apply(
+        # ~lambda x: x.split('_')[0]
+        # ~).astype('category')
+    # ~df_metric['condition'] = df_metric['control_recording'].map(
+        # ~{True: 'control', False: 'lsd'}
+        # ~).astype('category')
 
-    # Fit LMM for this epoch
-    model = Lmer(
-        f'{metric} ' + lmm_formula,
-        data=df_metric.query('epoch == @epoch'),
-        )
-    result = model.fit()
-    print(model.warnings)
-    if not model.warnings:
-        model_converged = True
-        print(result)
-        df_result = result.copy()
-        df_result['formula'] = lmm_formula
-        df_result.to_csv(PROJECT_ROOT / f'results/LMM_{metric}_{epoch}.csv')
+    # ~# Fit LMM for this epoch
+    # ~model = Lmer(
+        # ~f'{metric} ' + lmm_formula,
+        # ~data=df_metric.query('epoch == @epoch'),
+        # ~)
+    # ~result = model.fit()
+    # ~print(model.warnings)
+    # ~if not model.warnings:
+        # ~model_converged = True
+        # ~print(result)
+        # ~df_result = result.copy()
+        # ~df_result['formula'] = lmm_formula
+        # ~df_result.to_csv(PROJECT_ROOT / f'results/LMM_{metric}_{epoch}.csv')
 
 
 ## TEMPFIX
@@ -372,8 +377,9 @@ def fix_metric_name(col):
 
     return col
 
+#### BinomialGLMM for proportion significant per condition #####################
+
 alpha = 0.05
-# Perparing for GLMM
 df_singleunit['condition'] = df_singleunit['control_recording'].astype('category')
 for metric in [fix_metric_name(col) for col in metric_names]:
     for epoch in epoch_pairs.keys():
@@ -438,6 +444,96 @@ for metric in [fix_metric_name(col) for col in metric_names]:
             df_result = result.copy()
             df_result['formula'] = lmm_formula
             df_result.to_csv(PROJECT_ROOT / f'results/GLMM_{metric}_{epoch}.csv')
+
+
+#### MI Distribution Diff ######################################################
+from scipy.stats import ks_2samp, gaussian_kde
+# ~df_singleunit['condition'] = df_singleunit['control_recording'].apply(
+    # ~lambda x: 'Saline' if x else 'LSD'
+    # ~).astype('category')
+xvals = np.linspace(-1, 1, 1000)
+alpha = 0.5
+for metric in metric_names:
+    for epoch in epoch_pairs.keys():
+        data_col = f'{epoch}_{metric}_MI'
+        query = f'({epoch}_{metric}_MIp <= {alpha/2}) or ({epoch}_{metric}_MIp >= {1 - alpha/2})'
+        # ~df_epoch = df_singleunit.query(query)
+        df_epoch = df_singleunit.copy()
+        pdfs = df_epoch.dropna(subset=data_col).groupby('condition').apply(
+            lambda x:
+                gaussian_kde(x[data_col])(xvals)
+                if len(x) > 10 else np.full(len(xvals), np.nan),
+            include_groups=False
+            )
+        ks_stat, ks_pval = ks_2samp(*[
+            df_epoch[df_epoch['condition'] == c][data_col].dropna()
+            for c in df_epoch['condition'].unique()
+            ])
+        print(ks_pval)
+        pdf_diff = np.diff(np.flip(np.stack(pdfs)), axis=0).squeeze()
+        pdf_control = pdfs.loc['Saline']   # Assuming True = control
+        pdf_lsd = pdfs.loc['LSD']       # Assuming False = LSD
+        # Explicit subtraction (LSD - Control)
+        pdf_diff = pdf_lsd - pdf_control
+        fig, ax = plt.subplots()
+        title = 'Saline' if control else 'LSD'
+        ax.set_title(EPOCHLABELS[epoch])
+        color = CONTROLCOLOR if control else LSDCOLOR
+        ax.plot(xvals, pdf_diff, color='black')
+        ax.fill_between(
+            xvals, pdf_diff, where=pdf_diff >= 0,
+            color=LSDCOLOR, alpha=0.25
+            )
+        ax.fill_between(
+            xvals, pdf_diff, where=pdf_diff <= 0,
+            color=CONTROLCOLOR, alpha=0.25
+            )
+        # Add significance stars
+        ax.text(
+            xvals[-1] + 0.05 * (xvals[-1] - xvals[0]),
+            0,
+            plots.pval2stars(ks_pval, ns=''),
+            fontsize=LABELFONTSIZE,
+            va='center',
+            rotation=90
+        )
+        ax.errorbar(
+            np.nanmean(df_singleunit.query('condition == "LSD"')[f'{epoch}_{metric}_MI']),
+            0.45,
+            xerr=df_singleunit.query('condition == "LSD"').dropna(subset=f'{epoch}_{metric}_MI')[f'{epoch}_{metric}_MI'].sem() * 1.96,
+            color=LSDCOLOR,
+            marker='o',
+            ms=5
+            )
+        ax.errorbar(
+            np.nanmean(df_singleunit.query('condition == "Saline"')[f'{epoch}_{metric}_MI']),
+            0.34,
+            xerr=df_singleunit.query('condition == "Saline"').dropna(subset=f'{epoch}_{metric}_MI')[f'{epoch}_{metric}_MI'].sem() * 1.96,
+            color=CONTROLCOLOR,
+            marker='o',
+            ms=5
+            )
+        ax.set_xticks([-1, 0, 1])
+        ax.set_xlabel(f'Modulation Index\n{METRICLABELS[metric]}')
+        ax.set_yticks([-0.5, 0, 0.5])
+        ax.set_ylabel(
+            '$\Delta$ Proportion\n(LSD - Saline)'
+            )
+        plots.clip_axes_to_ticks(ax=ax)
+        plots.set_plotsize(w=3, h=2, ax=ax)
+        fig.savefig(
+            PROJECT_ROOT / f'figures/{epoch}_{metric}_MIdistdiff.svg'
+            )
+
+for metric in ['mean_rate', 'fano_factor_dt10000']:
+    for epoch in ['spontaneous', 'replay']:
+        print(epoch, metric)
+        print(ttest_ind(
+                df_singleunit.query('condition == "LSD"').dropna(subset=f'{epoch}_{metric}_MI')[f'{epoch}_{metric}_MI'],
+                df_singleunit.query('condition == "Saline"').dropna(subset=f'{epoch}_{metric}_MI')[f'{epoch}_{metric}_MI']
+                )
+            )
+
 
 
 #### SOME CODE FROM CLAUDE ####################################################
@@ -701,7 +797,7 @@ for metric in metric_names:
             )
 
 
-
+#### Mean MI per Region ########################################################
 
 def _apply_OLS(group_data, col, min_n=10):
     group_data.reset_index(drop=True, inplace=True)
@@ -713,22 +809,23 @@ def _apply_OLS(group_data, col, min_n=10):
         print(f"{group_data.name}: skipping, too few neurons per condition!")
         return np.nan
     # ~model = Lmer(f'{col} ~ condition + (1 | subject)', data=group_data,)
-    model = smf.ols(f'{col}  ~ C(control_recording)', group_data)
+    model = smf.ols(f'{col}  ~ condition', group_data)
     result = model.fit()
     # ~return result['P-val'].iloc[1]
-    return result.pvalues['C(control_recording)[T.True]']
+    return result.pvalues['condition[T.Saline]']
 
-## TEMPFIX
-df_singleunit.columns = [remove_dot_column_name(col) for col in df_singleunit.columns]
 
-for metric in [fix_metric_name(col) for col in metric_names]:
+# ~df_singleunit.columns = [remove_dot_column_name(col) for col in df_singleunit.columns]
+# ~for metric in [fix_metric_name(col) for col in metric_names]:
+for metric in metric_names:
     for epoch in epoch_pairs.keys():
+        # Run the stats
         p_vals = df_singleunit.groupby('coarse_region').apply(
             lambda x: _apply_OLS(x, f'{epoch}_{metric}_MI'),
             include_groups=False
             )
         print("\n=============================================================")
-        print(f"{metric} - {epoch}")
+        print(f"OLS: {metric} - {epoch}")
         print("=============================================================")
         print(p_vals[[r not in exclude_regions for r in p_vals.index]])
         p_vals_filtered = p_vals[[r not in exclude_regions for r in p_vals.index]]
@@ -736,13 +833,21 @@ for metric in [fix_metric_name(col) for col in metric_names]:
 
         # Plot with faded bars for NaN p-values
         df_plot = df_singleunit.query('coarse_region not in @exclude_regions').copy()
+        na_regions = p_vals[p_vals.isna()].index
+        df_plot = df_plot.query('coarse_region not in @na_regions')
+
+        def _compare_conditions(group_data):
+            lsd_data = group_data.query('condition == "LSD"')[f'{epoch}_{metric}_MI']
+            saline_data = group_data.query('condition == "Saline"')[f'{epoch}_{metric}_MI']
+            return np.abs(lsd_data.mean() - saline_data.mean()) * np.sign(lsd_data.mean())
 
         fig, ax = plots.plot_mean_by_group(
             df_plot,
             f'{epoch}_{metric}_MI',
             'coarse_region',
-            'control_recording',
-            sort_by=False,
+            'condition',
+            sort_by='LSD',
+            # ~agg_func=_compare_conditions,
             colors=[LSDCOLOR, CONTROLCOLOR],
             orientation='horizontal',
             ascending=True
@@ -769,7 +874,7 @@ for metric in [fix_metric_name(col) for col in metric_names]:
         ax.set_xticks([-0.5, 0, 0.5])
         ax.set_xlabel('Mean MI')
         plots.clip_axes_to_ticks(ax=ax, ext={'left':[-0.5, 0.5]})
-        plots.set_plotsize(w=6, h=12, ax=ax)
+        plots.set_plotsize(w=3, h=6, ax=ax)
         fig.savefig(
             PROJECT_ROOT / f'figures/{epoch}_{metric}_MI_regions.svg'
             )

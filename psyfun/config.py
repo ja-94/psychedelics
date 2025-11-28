@@ -92,7 +92,7 @@ postLSD_epoch_length = 5 * 60  # seconds
 postLSD_epoch_starts = np.arange(0, 30, 10) * 60  # seconds
 
 FIGUREDPI = 180
-LABELFONTSIZE = 14
+LABELFONTSIZE = 8
 LSDCOLOR = 'mediumorchid'
 CONTROLCOLOR = 'mediumseagreen'
 CMAPS = {
@@ -100,13 +100,49 @@ CMAPS = {
         'rec_type', [(0., 'white'), (0.01, LSDCOLOR), (1., CONTROLCOLOR)]
         ),
     'n_units': mpl.colormaps['Reds'],
-    'LSD': mpl.colors.LinearSegmentedColormap.from_list("LSD_cmap", ['gray', LSDCOLOR]),
-    'control': mpl.colors.LinearSegmentedColormap.from_list("control_cmap", ['gray', CONTROLCOLOR]),
+    'LSD': mpl.colors.LinearSegmentedColormap.from_list("LSD_cmap", ['white', LSDCOLOR]),
+    'control': mpl.colors.LinearSegmentedColormap.from_list("control_cmap", ['white', CONTROLCOLOR]),
     'qc': mpl.colors.LinearSegmentedColormap.from_list(
         'qc_cmap',
         [(0., 'white'), (0.01, 'gray'), (0.1, 'palevioletred'), (0.33, 'violet'), (0.66, 'orange'), (1., 'limegreen')],
     )
 }
+
+EPOCHLABELS = {
+    'spontaneous': 'Spontaneous',
+    'replay': 'Visual+Auditory\nStimulation',
+    'rfm': 'Receptive Field Mapping',
+    }
+METRICLABELS = {
+    'coefficient_of_variation': 'CV',
+    'mean_rate': 'Mean Rate (Hz)',
+    'fano_factor_dt100': 'Fano Factor (dt=0.1s)',
+    'fano_factor_dt1000': 'Fano Factor (dt=1s)',
+    'fano_factor_dt10000': 'Fano Factor (dt=10s)',
+    'lempel_ziv_complexity_dt100': 'LZ Complexity (dt=0.1s)',
+    'lempel_ziv_complexity_dt1000': 'LZ Complexity (dt=1s)',
+    'lempel_ziv_complexity_dt10000': 'LZ Complexity (dt=10s)',
+    }
+METRICMEANTICKS = {
+    'coefficient_of_variation': [0, 2.5, 5],
+    'mean_rate': [0, 5, 10, 15],
+    'fano_factor_dt100': [0, 1.5, 3],
+    'fano_factor_dt1000': [0, 5, 10],
+    'fano_factor_dt10000': [0, 10, 20, 30],
+    }
+POPMETRICLABELS = {
+    'pc1': 'PC1',
+    'n80': 'N80',
+    'powlaw': 'Slope',
+    'ngsc': 'NGSC'
+    }
+POPMETRICTICKS = {
+    'pc1': [0, 0.15],
+    'n80': [50, 250, 450],
+    'powlaw': [-0.75, -0.5, -0.25],
+    'ngsc': [0.56, 0.63, 0.7],
+    }
+
 
 # Map QC flags to numbers for plotting
 QCVAL2NUM = {

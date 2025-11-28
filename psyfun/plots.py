@@ -291,7 +291,7 @@ def plot_proportion_by_group(
 
 
 def plot_mean_by_group(
-    df, col, group_by, condition_col='control_recording', sort_by=None,
+    df, col, group_by, condition_col=None, sort_by=None, agg_func=None,
     ascending=False, width=0.4, alpha=0.05, colors=None, orientation='vertical'
     ):
     """
@@ -305,7 +305,7 @@ def plot_mean_by_group(
         Boolean column name (True = significant/positive result)
     group : str
         Grouping variable (e.g., 'coarse_region', 'subject')
-    condition : str
+    condition_col : str
         Condition variable for side-by-side bars (e.g., 'control_recording')
     sort_by : value from condition column, optional
         Sort groups by proportion in this condition (default: first condition)
@@ -323,11 +323,17 @@ def plot_mean_by_group(
     if colors is not None:
         assert len(colors) == n_conditions
 
+    def _mean(group_data):
+        return np.mean(group_data[col])
+
+    if agg_func is None:
+        agg_func = _mean
+
     sorted_groups = util.sort_groups(
         df,  # dataframe to sort groups in
         col,  # column with values of interest
         group_by,  # grouping column
-        aggfunc=np.mean,
+        agg_func=agg_func,
         reference_condition=(condition_col, sort_by) if sort_by is not None else sort_by,  # region order determined by sorting LSD recording values
         ascending=ascending
     )

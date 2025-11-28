@@ -85,6 +85,8 @@ df_units = df_units[[
     not col.endswith('_x') or col.endswith('_y')
     ]]
 df_units['coarse_region'] = coarse_regions(df_units['region'])
+
+
 # Get number of unit per coarse region recorded in the LSD condition (sorted)
 region_counts = df_units.query(
     'control_recording == False'
@@ -142,7 +144,7 @@ for control in [False, True]:
             coord=ap_coord * 1000,  # in um
             background='boundary',
             atlas=AllenAtlas(res_um=50),
-            clevels=[0, 4],
+            clevels=[0, 3],
             cmap=CMAPS['control'] if control else CMAPS['LSD'],
             show_cbar=True,
             ax=ax
@@ -157,14 +159,14 @@ for control in [False, True]:
         cbar.ax.set_position(
             [cbar_pos.x0, ax_pos.y0, cbar_pos.width, ax_pos.height]
             )
-        cbar.set_ticks(np.linspace(0, 4, 3))
+        cbar.set_ticks(np.linspace(0, 3, 4))
         cbar.set_ticklabels(
-            ['$10^{%d}$' % tick for tick in np.linspace(0, 4, 3)]
+            ['$10^{%d}$' % tick for tick in np.linspace(0, 3, 4)]
             )
         cbar.set_label('N units')
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
-        set_plotsize(w=10, h=10, ax=ax)
+        set_plotsize(w=4, h=4, ax=ax)
         clip_axes_to_ticks(ax=ax, spines=[])
         fig.savefig(
             f'figures/N_neurons_{"saline" if control else "LSD"}_AP{ap_coord}.svg'

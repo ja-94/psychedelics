@@ -34,7 +34,7 @@ epochs = [
     'task00_replay',
     'task01_spontaneous',
     'task01_replay',
-    'full'
+    # ~'full'
 ]
 
 # Get spike counts for epochs
@@ -148,7 +148,7 @@ for metric in metrics:
             yy = df_condition[f'task01_{epoch}_{metric}']
             # Pick colors and markers
             color = CONTROLCOLOR if condition else LSDCOLOR
-            ax.scatter(xx, yy, s=20, ec=color, fc='none')
+            ax.scatter(xx, yy, s=10, ec=color, fc='none')
         # Plot unity line over full range of data
         xx = df_pca[f'task00_{epoch}_{metric}']
         yy = df_pca[f'task01_{epoch}_{metric}']
@@ -158,13 +158,15 @@ for metric in metrics:
             color='gray', ls='--'
         )
         # Format axes
-        ax.set_title(f'{epoch.title()} {metric}')
-        plots.auto_tick(ax.xaxis, nticks=3, locator_class=None)
-        plots.auto_tick(ax.yaxis, nticks=3, locator_class=None)
+        ax.set_title(f'{epoch.title()} {POPMETRICLABELS[metric]}')
+        # ~plots.auto_tick(ax.xaxis, nticks=3, locator_class=None)
+        # ~plots.auto_tick(ax.yaxis, nticks=3, locator_class=None)
+        ax.set_xticks(POPMETRICTICKS[metric])
+        ax.set_yticks(POPMETRICTICKS[metric])
         ax.set_xlabel(f'Pre')
         ax.set_ylabel(f'Post')
         plots.clip_axes_to_ticks(ax=ax)
-        plots.set_plotsize(w=6)
+        plots.set_plotsize(w=2)
         fig.savefig(
             PROJECT_ROOT / f'figures/{epoch}_{metric}.svg'
             )
@@ -221,7 +223,7 @@ for epoch in ['spontaneous', 'replay']:
     ax.set_xlabel('PC1 Rotation')
     ax.tick_params(axis='x', pad=-3)
     ax.set_title(epoch.title())
-    plots.set_plotsize(w=6)
+    plots.set_plotsize(w=2)
     fig.savefig(
         PROJECT_ROOT / f'figures/{epoch}_PC1rotation.svg'
         )
@@ -283,14 +285,19 @@ for epoch in ['spontaneous', 'replay']:
     print("\n====")
     print(f"One-way ANOVA - PC1 similarity - {epoch}")
     print("====")
-    ols_formula = f'PC1sim ~ condition'
-    model = smf.ols(
-        ols_formula,
-        data=df_metric.query('epoch == @epoch')
+    # ~ols_formula = f'PC1sim ~ condition'
+    # ~model = smf.ols(
+        # ~ols_formula,
+        # ~data=df_metric.query('epoch == @epoch')
+        # ~)
+    # ~result = model.fit()
+    # ~anova_table = anova_lm(result, typ=2)  # Type II SS
+    # ~print(anova_table)
+    print(ttest_ind(
+            df_metric.query('epoch == @epoch and condition == "lsd"')['PC1sim'],
+            df_metric.query('epoch == @epoch and condition == "control"')['PC1sim']
+            )
         )
-    result = model.fit()
-    anova_table = anova_lm(result, typ=2)  # Type II SS
-    print(anova_table)
 
 
 def abs_max_per_row(X):
@@ -316,11 +323,11 @@ def _stats(df, y):
         )
     result = model.fit()
     anova_table = anova_lm(result, typ=2)  # Type II SS
-    # ~print(anova_table)
+    print(anova_table)
     return anova_table.loc['condition', 'PR(>F)']
 
 
-n_components = np.arange(2, 100)
+n_components = np.arange(2, 5)
 alpha = 0.05
 for epoch in ['spontaneous', 'replay']:
 
@@ -385,8 +392,8 @@ for epoch in ['spontaneous', 'replay']:
             )
         ax.fill_between(
             n_components,
-            yy.mean(axis=0) + sem(yy, axis=0) * 1.96,
-            yy.mean(axis=0) - sem(yy, axis=0) * 1.96,
+            yy.mean(axis=0) + sem(yy, axis=0),
+            yy.mean(axis=0) - sem(yy, axis=0),
             color=CONTROLCOLOR if control else LSDCOLOR,
             alpha=0.25
             )
@@ -396,14 +403,14 @@ for epoch in ['spontaneous', 'replay']:
             n_components[pvalues <= 0.05],
             yy.mean(axis=0)[pvalues <= 0.05],
             color=CONTROLCOLOR if control else LSDCOLOR,
-            s=20
+            s=5
             )
     ax.set_xticks([2, 50, 100])
     ax.set_xlabel('Number of Components')
     ax.set_yticks([0, 0.4, 0.8])
-    ax.set_ylabel('Cosine Similarity')
+    ax.set_ylabel('Mean Cosine Similarity')
     plots.clip_axes_to_ticks(ax=ax)
-    plots.set_plotsize(w=12, h=12, ax=ax)
+    plots.set_plotsize(w=4, h=4, ax=ax)
     fig.savefig(
         PROJECT_ROOT / f'figures/{epoch}_PCsimilarity.svg'
         )
@@ -567,4 +574,90 @@ print(f"N80 (mean, sd): {np.mean(n80s)}, {np.std(n80s)}")
 # ~# Extract results back to Python
 # ~anova_table = ro.r('result$ANOVA')
 # ~print(pandas2ri.rpy2py(anova_table))
+
+
+# Sliding epochs defined by time relative to some t0
+t0 = 'LSD_admin'  # must refer to column that exists in the dataframe
+# Use default epochs definted in config
+epoch_length = postLSD_epoch_length
+epoch_starts = postLSD_epoch_starts
+# Or define custom epochs
+epoch_length = 5 * 60  # windows are 5min long
+# windows every 2.5min from 10min before t0 to 30min post
+epoch_starts = np.arange(-10 * 60, 30 * 60, 2.5 * 60)
+# Add the sliding epochs to the dataframe (return_cols also gives us a list of all the epochs that were added
+df_spikes, sliding_epochs = util.sliding_epochs(
+    df_spikes, t0=t0, epochs=epoch_starts, length=epoch_length, return_cols=True
+    )
+
+# Get spike counts for epochs
+dt = 1  # seconds
+for epoch in sliding_epochs:
+    print(f"Getting spike counts for: {epoch}")
+    # Convert spike times to spike counts in bins of size dt
+    df_spikes[f'{epoch}_counts'] = df_spikes.progress_apply(
+        lambda neuron:
+            spikes._apply_spike_counts(
+                neuron, epoch=epoch, dt=dt
+                ),
+        axis='columns'
+        )
+df_pca = popdim(df_spikes, sliding_epochs)
+df = df_pca
+
+# Pick a metric
+for epoch in ['spontaneous', 'replay']:
+    for metric in metrics:
+        # Extract metric values from dataframe
+        metric_cols = ['_'.join([epoch, metric]) for epoch in sliding_epochs]
+        # Use window centers as time points
+        tpts = epoch_starts + epoch_length / 2
+        # Decide whether to plot individual lines for each neural population
+        plot_samples = False  # if false, SEM errorbars will be plotted
+
+        # Run an independent samples t-test for each epoch
+        df_lsd = df.query('control_recording == False')
+        df_saline = df.query('control_recording == True')
+        ttest_results = [stats.ttest_ind(df_lsd.dropna(subset=col)[col], df_saline.dropna(subset=col)[col]) for col in metric_cols]
+        pvals, tstats = [res.pvalue for res in ttest_results], [res.statistic for res in ttest_results]
+        pvals = stats.false_discovery_control(pvals, method='bh')
+
+        fig, ax = plt.subplots()
+        # Plot the mean for each condition
+        for condition in [True, False]:
+            mean = df[df['control_recording'] == condition][metric_cols].mean(axis=0)
+            color = CONTROLCOLOR if condition else LSDCOLOR
+            ax.plot(tpts, mean, color=color)
+            if not plot_samples:
+                sem = df[df['control_recording'] == condition][metric_cols].sem(axis=0)
+                ax.fill_between(tpts, mean - sem, mean + sem, color=color, alpha=0.25)
+
+        # Plot individual neural populations
+        if plot_samples:
+            for idx, population in df.iterrows():
+                color = CONTROLCOLOR if population['control_recording'] else LSDCOLOR
+                # ~linestyle = '--' if population['first_lsd_session'] else '-'  # dashed lines indicate the first LSD session for a mouse
+                ax.plot(
+                    tpts, population[metric_cols],
+                    color=color, linewidth=1, alpha=0.25
+                    )
+
+        # Add the p-values
+        y = df[metric_cols].mean(axis=0).max()
+        ns = ''  # what to display if the result isn't significant (default = 'n.s.')
+        for t, p in zip(tpts, pvals):
+            ax.text(t, y, plots.pval2stars(p, ns=ns))
+
+        ax.axvline(0, ls='--', color='gray')
+
+        # Format axes
+        ax.set_title(epoch.title())
+        ax.set_xticks([0] + list(tpts))
+        ax.tick_params('x', rotation=45)
+        ax.set_xlabel(f"Time since {t0} (s)")
+        ax.set_ylabel(metric)
+        plots.set_plotsize(w=8, h=4)
+        fig.savefig(
+            PROJECT_ROOT / f'figures/{epoch}_{metric}_sliding.svg'
+        )
 
