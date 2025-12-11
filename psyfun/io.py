@@ -13,6 +13,7 @@ atlas = AllenAtlas()
 
 from .config import *
 
+
 def fetch_sessions(one, save=True, qc=False):
     """
     Query Alyx for sessions tagged in the psychedelics project and add session

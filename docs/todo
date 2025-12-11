@@ -1,0 +1,211 @@
+Plot trajectories of PC1 instead of angles. PC1 is a high-dimensional vector, do PCA? Or RSA 
+because each recording will have a different number of components? RDM of angles?
+
+
+-Time warp!
+
+
+-Sliding window analysis
+-Per area analysis
+-Look at loadings: how are the contributions distributed? Are there few very important neurons for the
+first components? Or is it more homogeneously distributed?
+-Think RDMs? Plot matrix with angles between different epochs?
+
+-Plot versions:
+    -Jaime vs. Joana
+    -Jaime vs. Control
+    -Joana vs. Control
+    -Jaime+Joana vs Control
+
+
+
+-Make list of LSD vs control by eid
+
+
+
+
+
+
+
+
+-Solve issue with dropping last epochs between df_epochs and df_pca
+-Separate PCA (one function that just givefs back the pcs) from downstream (variance, tau, ngsc...)
+-Look at loadings too! not just the variance explained. Next step look at loadings accross conditions, angle changes?
+
+
+
+
+
+
+
+Meeting with Joana 10/01/2025
+-Check with Olivier for the issues with the NaNs in timings, Joana says Olivier had already solved that in the past?
+-Joana registered all probes but she doesn't remember if all probes were aligned, IMPORTANT areas might be misnamed, check on Alyx.
+In the Google Sheets there is a Histology tab with all this info. For the ones erroring/critical, it may be that they were not opening
+in Alyx,go to Alyx and check.
+-Ask Catarina for the hard drive.
+-Look at activation patterns per area co-recorded in one recording. Timing of information flow changes between pre and post.
+-Important to use biopsy punches for the long term cranios, bone has to be cut clean.
+-Look at two-probe recordings as one recording!
+-Send screenshots to Pedro.
+
+
+
+
+
+
+
+LSD Update 
+Functionize
+-Make one that computes one measurement across a window of data
+    -inputs neural data, associated timepoints, metric to compute
+    -arguments start time stop time window size step size or feed already clipped data
+-Plot things aligned to admin time for the sliding window, not needed for categorical windows
+-Make plot like pvalue ngsc for categorical windows but instead plot ngsc (window x)/ngsc (window 1), to get percentage change in the measurement, SEM error bars, multiply SEM *1.96 to get 95% CI, this is an approximation for statistical test, else do statistics and add asterisks. Do only with window 1 == spontaneous00
+
+
+
+
+
+
+LM Dec 4th
+------------------
+-If I want to, intro about context of project switch
+-Work in progress, feedback on everything, literature, structure, current and future analysis, ideas etc.
+-Find papers to say single neuron literature with psychs sucks
+-Mention DOI paper from JC, anesthetized, no coherence analysis
+-Re-read entropic brain stufff maybe 
+-No one has explicitely investigated entropic brain crap on animal ephys
+-Our approach
+-Firing rate modulation, coefficients of variability lit = inexistent kinda
+-Dimensionality of population activity, PCA screeplots
+-Explicite entropic brain hypothesis is connected to FC, feature: whole brain with fMRI, we have spikes in skinny ass probes
+-Communication subspaces, mouse ephys, dense recordings in two areas, we don't have, so behavior as output space
+-Rotational geometries glimpse
+-Our hypothesis of decoding behaviors from neurons, null vs output etc
+
+
+
+
+
+
+
+
+
+
+
+
+From meeting on 26.11.2024
+--------------------------
+It's good that we see things similar to the classic result PCA-wise
+
+FOR LATER - Look at more time windows. Davide proposes one immediately post-LSD, another one before the second spontaneous window. We could do a sliding window or a set of continuous intervals to see time evolution.
+FOR LATER - Should we check if the animals are sleeping?
+
+JA
+Fit exponentials
+Remake the neurons/areas/sessions with all sessions/assess why few neurons
+Interesting to see if there is variability accross sessions/insertions/areas (-> do the neurons per area per recording plot, coloring it green for increase in alpha, red for decrease)
+Plot screes normalized to the first component in each condition, to see shape of decay independently of intercept
+Optimize code to stop downloading things everytime:
+    -Save spikes, clusters, channels to files
+    -Separate the binned rasters code from spike loading
+    -Run PCA on spikes and clusters, not binned matrix
+    -Save PCA results to speed up later working on it/plotting
+
+
+
+DC
+Label based on whether it's first, second, or third LSD session (we should probably add this to the .csv with all the session info?)
+Label animals in plots
+Figure out missing timings from raw task data files
+
+
+
+
+
+
+
+
+For: 26.11.2024
+---------------
+JA
+- make scree plots for every recording (2 lines/ barplots in same axis, with error bars of some kind)
+    - fit 1/f^x slope to explained variance function
+    - def power_law(x, alpha): return 1 / (f ** alpha)
+    - alpha, cov = scipy.curve_fit(power_law, np.arange(len(pcs)), yy))
+    - paired samples plot of alpha in each condition
+
+DC
+- make scatter plot for firing rates and Fano factors during spontaneous activity
+
+
+
+
+
+
+
+Change format of 'data' variable and others to a Dataframe with
+    -unique identifier per unit
+    -column with spike times with each entry being a numpy array with all times for a given unit
+
+Do within and accross area plots and analysis about neuron-LFP coupling with average  approach as in DOI paper
+
+Check Michael Okun paper for later analyses options (Diverse coupling of neurons to populations in
+sensory cortex)
+
+
+
+
+
+Do a sliding window/ several windows over the session (tmin-tmax) and compute mean
+coherence for each, plot evolution over the session.
+Do the same for different ranges of the spectral power.
+
+
+
+
+Do accross brain and do one t-test to see if coherence increases or decreases. Distribution of differences, see if it's significantly above or below zero. 
+Time evolution of coherence. 
+Time-varying bootstrapping?
+Limited frequency band vs. accross frequencies.
+Check Davide's multi-tapered coherence.
+
+
+
+
+
+
+Grab mPFC channels
+Plot FFT for LFP before and after LSD
+Check coherence before and after LSD
+Time-resolved (sliding window) to see evolution throughout session
+
+
+
+
+Post 25 Oct meeting
+-Focus on secondary motor cortex and maybe striatum
+-Video
+    -PCA
+    -x and y velocity?
+    -
+-Spike
+    -binning+counts/instantaneous firing rates at video's sampling rate
+    -PCA, choose subset of dimensions
+        -Regressions to neural PCs (predicting behavioral keypoint velocity/position from neural PCs)
+        -Can be sparse (ridge?lasso? one of these, elastic?, penalises big weights, promotes having spread out weights across more neurons) regression or explicitely reduced rank regression (doesn't need PCs, probably ok directly on FRs). 
+            -RRR has the interesting aspecct of the middle layer's number of units being a hyperparameter which we can modulate MAYBE
+
+-Modeling strategies
+    -We could train a RRR decoder either on neural or behavior to predict the other, and assess performance decrease in LSD vs. baseline. First approximation
+    potentially issues with cross-validation and lack of controls. If with proper cross-validation/controls this could already say that the subspace is
+    shifted, could be drift or changes in behavior.
+    -Second level, we could train different RRR models in baseline vs. LSD and compare dimensionality. RRR is similar to PCs but instead of being about the variance of the input explained
+    it's about the variance captured in the output. 
+    -After chat with Davide:
+        -Probably best idea for starters is to train a decoder (simple, sparse regression or smt) to predict behavior from neural activity. This should give a vector of coefficients to weight the contributions of each neuron in the population. That vector is the readout dimension of the activity subspace, which contains all the information that the decoder finds informative to predict behavior. We can consider the hyperplane orthogonal to that direction to be the null space of the population, where all the non-behavior-predicting information is found. The alternative option that we discussed was a situation where we would have a way to also identify behavior-related content in this null space (memories, planning, akin to replay or premotor stuff, ask Dan for papers on the rotational differences?), which in this version of the modeling we don't have. So, there is just a readout dimension and everything else (is there anything else apart from the readout dimension and the orthogonal hyperplane? I guess not, if hyperplanes are like planes a plane and one orthogonal dimension will be enough to span all the 3D space), which we consider the null space. We can think of two options here. The first is to train such a decoder on baseline and see how it behaves also during LSD, the other is to train one decoder for each condition. Using the same model accross conditions would mean looking at exactly the same readout dimension (the same linear combination of the inputs) and exactly the same orthogonal hyperplane. This would allow us to look at the differences in both. Is there a decrease in the information carried on the readout dimension in LSD vs. baseline? That would be interesting. Is there an increase in the behavior-predicting information carried in the orthogonal hyperplane in LSD vs. baseline? That also would be interesting. These could be two different things that change accross conditions, and both would be informative for our initial interest of assessing if LSD alters the dynamics between public and private subspaces in a given area, albeit perhaps indirectly. On the other hand, if we train the two decoders in the two conditions, we could then calculate the angle between the readout dimensions, which would also be indicative of changes of null vs. output subspaces accross the conditions, but the other method seems a bit more nuanced because it would also be able to differenciate between a decrease in information in the readout dimension and an increase in information in the null dimensions, which could both contribute to angle differences. 
+
+-Next steps:
+    -I work on spiking data, Davide works on behavior?
+    -Get spikes into a format that we can work with. Find neurons corresponding to the areas of interest in Guido's recording, and for a given recording get all the neurons in the area and put them into a matrix. Calculate instantaneous firing rates or spike bins, using the sampling rate of the behavioral videos to later train the decoder. 
