@@ -12,6 +12,8 @@ metadata/sessions.pqt
 metadata/insertions.pqt
 results/
 figures/
+video/video_data
+stats/
 
 # Python package installation
 *.egg-info/
