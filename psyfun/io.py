@@ -40,11 +40,13 @@ def fetch_sessions(one, save=True, qc=False):
     df_sessions.drop(columns='projects')
     if qc:
         # Unpack the extended qc from the session dict into dataframe columns
+        print("Unpacking quality control data...")
         df_sessions = df_sessions.progress_apply(_unpack_session_dict, one=one, axis='columns').copy()
     # Check if important datasets are present for the session
     df_sessions['n_probes'] = df_sessions.apply(lambda x: len(one.eid2pid(x['eid'])[0]), axis='columns')
     df_sessions['n_tasks'] = df_sessions['task_protocol'].apply(lambda x: sum(['passive' in task.lower() for task in x.split('_')]))
     df_sessions['tasks'] = df_sessions.apply(lambda x: x['task_protocol'].split('/'), axis='columns')
+    print("Checking datasets...")
     df_sessions = df_sessions.progress_apply(_check_datasets, one=one, axis='columns').copy()
     # Add label for control sessions
     df_sessions['control_recording'] = df_sessions.apply(_label_controls, axis='columns')
@@ -52,6 +54,7 @@ def fetch_sessions(one, save=True, qc=False):
     # Add label for the electrode insertion trajectories
     df_sessions = get_trajectory_labels(df_sessions)
     # Fetch task protocol timings and add to dataframe
+    print("Fetching protocol timings...")
     df_sessions = df_sessions.progress_apply(_fetch_protocol_timings, one=one, axis='columns').copy()
     # Add LSD administration time
     df_meta = load_metadata()
@@ -206,10 +209,10 @@ def _insert_LSD_admin_time(series, df_metadata=None):
     ]
     # Ensure only one entry is present
     if len(session_meta) < 1:
-        warnings.warn(f"No entries in 'recordings.csv' for {series['eid']}")
+        warnings.warn(f"No entries in 'metadata.csv' for {series['eid']}")
         return series
     elif len(session_meta) > 1:
-        warnings.warn(f"More than one entry in 'recordings.csv' for {series['eid']}")
+        warnings.warn(f"More than one entry in 'metadata.csv' for {series['eid']}")
         return series
     series['LSD_admin'] = session_meta['administration_time'].values[0]
     return series
