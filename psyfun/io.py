@@ -65,12 +65,21 @@ def fetch_sessions(one, save=True, qc=False):
     return df_sessions
 
 
+@lru_cache(maxsize=1)
+def _get_default_connection():
+    """
+    Create and cache the default database connection. Cached connection allows
+    repeated function calls without re-creating connection instance.
+    """
+    return ONE()
+
+
 def _unpack_session_dict(series, one=None):
     """
     Unpack the extended QC from the session dict for a given eid.
     """
-    assert one is not None
-    print("Unpacking quality control data...")
+    if one is None:
+        one = _get_default_connection()
     # Fetch full session dict
     session_dict = one.alyx.rest('sessions', 'read', id=series['eid'])
     series['session_qc'] = session_dict['qc']  # aggregate session QC value
@@ -99,8 +108,8 @@ def _check_datasets(series, one=None):
     """
     Create a boolean entry for each important dataset for the given eid.
     """
-    assert one is not None
-    print("Checking datasets...")
+    if one is None:
+        one = _get_default_connection()
     # Fetch list of datasets listed under the given eid
     datasets = one.list_datasets(series['eid'])
     # Check each task in the recording
@@ -134,8 +143,8 @@ def _fetch_protocol_timings(series, one=None):
     """
     Get timings of protocol events throughout the recording sesison.
     """
-    assert one is not None
-    print("Fetching protocol timings...")
+    if one is None:
+        one = _get_default_connection()
     session_details = one.get_details(series['eid'])
     session_start = datetime.fromisoformat(session_details['start_time'])
     task_count = 0
