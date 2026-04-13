@@ -15,13 +15,13 @@ from psyfun.config import *
 
 epoch_pairs = {
     'spontaneous': ('task00_spontaneous', 'task01_spontaneous'),
-    'replay': ('task00_replay', 'task01_replay'),
+    #'replay': ('task00_replay', 'task01_replay'),
 }
 
 
 metrics = {
     spikes.mean_rate: {},
-    spikes.coefficient_of_variation: {}
+    #spikes.coefficient_of_variation: {}
     }
 
 dts = np.logspace(-1, 1, 3)
@@ -49,6 +49,7 @@ for epoch_name, epochs in epoch_pairs.items():
         ).tolist(),
         index=df_spikes.index
     )
+    
     for dt in dts:
         binned_metrics_ = {metric: {'dt': dt} for metric in binned_metrics.keys()}
         df_metrics_dt_ = pd.DataFrame(
@@ -814,7 +815,7 @@ def _apply_OLS(group_data, col, min_n=10):
     # ~return result['P-val'].iloc[1]
     return result.pvalues['condition[T.Saline]']
 
-
+exclude_regions = ['None', 'Fiber tract']
 # ~df_singleunit.columns = [remove_dot_column_name(col) for col in df_singleunit.columns]
 # ~for metric in [fix_metric_name(col) for col in metric_names]:
 for metric in metric_names:
@@ -829,7 +830,7 @@ for metric in metric_names:
         print("=============================================================")
         print(p_vals[[r not in exclude_regions for r in p_vals.index]])
         p_vals_filtered = p_vals[[r not in exclude_regions for r in p_vals.index]]
-        p_vals.to_csv(PROJECT_ROOT / f'results/{epoch}_{metric}_meanMI_regions.csv')
+        # p_vals.to_csv(PROJECT_ROOT / f'results/{epoch}_{metric}_meanMI_regions.csv')
 
         # Plot with faded bars for NaN p-values
         df_plot = df_singleunit.query('coarse_region not in @exclude_regions').copy()
@@ -878,6 +879,53 @@ for metric in metric_names:
         fig.savefig(
             PROJECT_ROOT / f'figures/{epoch}_{metric}_MI_regions.svg'
             )
+
+include_regions = ['Prefrontal Ctx', 'Supp. Motor Ctx  
+for metric in metric_names:
+    for epoch in epoch_pairs.keys():
+        # Plot with faded bars for NaN p-values
+        df_plot = df_singleunit.query('coarse_region not in @exclude_regions').copy()
+        df_plot = df_plot.query('coarse_region not in @na_regions')
+
+        def _compare_conditions(group_data):
+            lsd_data = group_data.query('condition == "LSD"')[f'{epoch}_{metric}_MI']
+            saline_data = group_data.query('condition == "Saline"')[f'{epoch}_{metric}_MI']
+            return np.abs(lsd_data.mean() - saline_data.mean()) * np.sign(lsd_data.mean())
+
+        fig, ax = plots.plot_mean_by_group(
+            df_plot,
+            f'{epoch}_{metric}_MI',
+            'coarse_region',
+            'condition',
+            sort_by='LSD',
+            # ~agg_func=_compare_conditions,
+            colors=[LSDCOLOR, CONTROLCOLOR],
+            orientation='horizontal',
+            ascending=True
+            )
+
+        # Add alpha column based on whether p-value is NaN
+        region_alpha = {
+            region: 0.3
+            if np.isnan(p_vals_filtered.get(region, np.nan)) else 1.0
+            for region in df_plot['coarse_region'].unique()
+            }
+
+        # Fade bars for regions with NaN p-values
+        for i, region in enumerate(ax.get_yticklabels()):
+            region_name = region.get_text()
+            if region_name in region_alpha and region_alpha[region_name] < 1.0:
+                # Find and fade all patches (bars) at this y-position
+                for patch in ax.patches:
+                    # Check if patch is at this y-level (within tolerance)
+                    if abs(patch.get_y() + patch.get_height()/2 - i) < 0.5:
+                        patch.set_alpha(0.3)
+
+        ax.set_title(f'{epoch.title()} - {metric}')
+        ax.set_xticks([-0.5, 0, 0.5])
+        ax.set_xlabel('Mean MI')
+        plots.clip_axes_to_ticks(ax=ax, ext={'left':[-0.5, 0.5]})
+        plots.set_plotsize(w=3, h=6, ax=ax)
 
 
 ## WIP: MI dist pdf difference (LSD - control)
